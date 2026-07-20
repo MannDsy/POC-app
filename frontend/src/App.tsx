@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
-import HomePage from './pages/homepage'
+import HomePage from './pages/homepage' // Added the import for your new page
 import './App.css'
 
-// 1. Move the original Vite Landing Page code into its own sub-component
-function LandingPage() {
+function App() {
   const [count, setCount] = useState(0)
-  const navigate = useNavigate(); // The hook used to trigger clean browser navigation
+  const [showHomePage, setShowHomePage] = useState(false) // State to track view switching
+
+  // Conditional rendering: If the state is true, render the eInfochips Dashboard instead
+  if (showHomePage) {
+    return <HomePage />;
+  }
 
   return (
     <>
@@ -27,6 +30,7 @@ function LandingPage() {
         </div>
         
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          {/* Original counter button */}
           <button
             type="button"
             className="counter"
@@ -35,12 +39,12 @@ function LandingPage() {
             Count is {count}
           </button>
 
-          {/* UPDATED BUTTON: Changes URL to /home and updates browser history */}
+          {/* NEW HOMEPAGE TESTING BUTTON */}
           <button
             type="button"
             className="counter"
             style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none' }}
-            onClick={() => navigate('/home')}
+            onClick={() => setShowHomePage(true)}
           >
             Go to Homepage ➔
           </button>
@@ -80,7 +84,11 @@ function LandingPage() {
           <ul>
             <li>
               <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
+                <svg
+                  className="button-icon"
+                  role="presentation"
+                  aria-hidden="true"
+                >
                   <use href="/icons.svg#github-icon"></use>
                 </svg>
                 GitHub
@@ -88,7 +96,11 @@ function LandingPage() {
             </li>
             <li>
               <a href="https://chat.vite.dev/" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
+                <svg
+                  className="button-icon"
+                  role="presentation"
+                  aria-hidden="true"
+                >
                   <use href="/icons.svg#discord-icon"></use>
                 </svg>
                 Discord
@@ -96,7 +108,11 @@ function LandingPage() {
             </li>
             <li>
               <a href="https://x.com/vite_js" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
+                <svg
+                  className="button-icon"
+                  role="presentation"
+                  aria-hidden="true"
+                >
                   <use href="/icons.svg#x-icon"></use>
                 </svg>
                 X.com
@@ -104,7 +120,11 @@ function LandingPage() {
             </li>
             <li>
               <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
+                <svg
+                  className="button-icon"
+                  role="presentation"
+                  aria-hidden="true"
+                >
                   <use href="/icons.svg#bluesky-icon"></use>
                 </svg>
                 Bluesky
@@ -117,21 +137,6 @@ function LandingPage() {
       <div className="ticks"></div>
       <section id="spacer"></section>
     </>
-  )
-}
-
-// 2. Main App Component handles the routing table definition
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Default route loads the original Vite dashboard template */}
-        <Route path="/" element={<LandingPage />} />
-        
-        {/* Dedicated /home route loads your custom dynamic workspace dashboard */}
-        <Route path="/home" element={<HomePage />} />
-      </Routes>
-    </BrowserRouter>
   )
 }
 

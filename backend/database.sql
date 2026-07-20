@@ -9,3 +9,5 @@
 
 
 select * from employees;
+
+SELECT * FROM employees
