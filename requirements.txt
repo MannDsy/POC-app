@@ -3,3 +3,7 @@ express
 cors
 sqlite3
 nodemailer
+
+For Frontend:
+axios 
+react-router-dom
