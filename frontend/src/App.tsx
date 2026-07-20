@@ -2,7 +2,7 @@ import { useState } from "react";
  
 import Login from "./pages/Login";
 import VerifyOtp from "./pages/VerifyOtp";
-import Dashboard from "./pages/Dashboard";
+import HomePage from './pages/homepage'
  
 function App() {
   const [email, setEmail] = useState("");
@@ -24,13 +24,13 @@ function App() {
       <VerifyOtp
         email={email}
         onSuccess={() =>
-          setStep("dashboard")
+          setStep("homepage")
         }
       />
     );
   }
  
-  return <Dashboard />;
+  return <HomePage />;
 }
  
 export default App;
