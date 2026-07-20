@@ -7,3 +7,4 @@ nodemailer
 For Frontend:
 axios 
 react-router-dom
+bootstrap
