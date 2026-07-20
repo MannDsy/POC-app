@@ -1,0 +1,5 @@
+For Backend:
+express 
+cors
+sqlite3
+nodemailer
