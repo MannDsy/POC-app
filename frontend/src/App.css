@@ -73,18 +73,24 @@ body {
   border: 1px solid #d1d5db;
   border-radius: 8px;
 
-  background: #f8fafc;
+background: #f1f5f9; 
 }
 
 .change-email-btn {
   border: none;
   background: transparent;
-
-  font-size: 20px;
+  font-size: 16px;         /* was 20px — a bit large next to 0.95rem email text */
   font-weight: bold;
-
   color: #dc2626;
   cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.change-email-btn:hover {
+  background: #fee2e2;     /* subtle hover feedback instead of just color change */
+  color: #991b1b;
 }
 
 .change-email-btn:hover {
