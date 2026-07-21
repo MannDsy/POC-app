@@ -305,7 +305,8 @@ input, button, select, textarea {
 
 .mainLoginContainer .loginFormDiv {
     width: 352px;
-    height: 350px;
+    height: 400px;        
+    min-height: 350px;
     margin-top: 10px;
     border-radius: 12px;
     padding: 20px;
@@ -316,8 +317,8 @@ input, button, select, textarea {
 .mainLoginContainer .pmsTxt {
     font-family: Poppins;
     font-weight: 500;
-    font-size: 20px;
-    line-height: 32px;
+    font-size: 16px;
+    line-height: 26px;
     letter-spacing: 0%;
     text-align: center;
     color: var(--black-3, #595959)
@@ -326,8 +327,8 @@ input, button, select, textarea {
 .mainLoginContainer .loginHeading {
     font-family: Poppins;
     font-weight: 500;
-    font-size: 32px;
-    line-height: 32px;
+    font-size: 26px;
+    line-height: 26px;
     letter-spacing: 0%;
     text-align: center;
     color: var(--blue-1, #0069aa);
@@ -341,7 +342,8 @@ input, button, select, textarea {
 
 .mainLoginContainer .outerFormDiv {
     width: 415px;
-    height: 292px;
+    height: auto;        
+    min-height: 292px;
     gap: 30px
 }
 
@@ -43272,3 +43274,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .fa,[class^=fa-],[class*=" fa-"] {
     font-family: FontAwesome!important
 }
+
+.loginLogo {
+  width: 140px;
+  height: auto;
+  display: block;
+  margin: 0 auto 20px;
+}
+
