@@ -3,6 +3,7 @@ express
 cors
 sqlite3
 nodemailer
+express-session
 
 For Frontend:
 axios 
