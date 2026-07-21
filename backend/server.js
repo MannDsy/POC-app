@@ -23,41 +23,101 @@ function generateOTP() {
 app.get("/", (req, res) => {
   res.send("Backend Running");
 });
-app.post("/send-otp", async (req, res) => {
+app.post("/send-otp", (req, res) => {
 
   const { email } = req.body;
 
-  const otp = generateOTP();
-
-  db.run(
+  db.get(
     `
-    INSERT INTO otp_verification
-    (
-      email,
-      otp
-    )
-    VALUES (?,?)
+    SELECT *
+    FROM employees
+    WHERE email = ?
     `,
-    [email, otp]
+    [email],
+
+    async (err, employee) => {
+
+      // Database error
+      if (err) {
+
+        return res.status(500).json({
+          success: false,
+          message: "Database Error"
+        });
+      }
+
+      // Employee not found
+      if (!employee) {
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "Employee does not exist"
+        });
+      }
+
+      // Employee inactive
+      if (employee.isActive !== 1) {
+
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your account is inactive. Please contact administrator."
+        });
+      }
+
+      try {
+
+        const otp = generateOTP();
+
+        db.run(
+          `
+          INSERT INTO otp_verification
+          (
+            email,
+            otp
+          )
+          VALUES (?,?)
+          `,
+          [email, otp]
+        );
+
+        await transporter.sendMail({
+          from: "prasham1504@gmail.com",
+          to: email,
+          subject:
+            "Interview Management OTP",
+
+          html: `
+            <h2>OTP Verification</h2>
+
+            <p>Your OTP is:</p>
+
+            <h1>${otp}</h1>
+          `
+        });
+
+        return res.json({
+          success: true,
+          message:
+            "OTP Sent Successfully"
+        });
+
+      } catch (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+          success: false,
+          message:
+            "Failed to send OTP"
+        });
+      }
+
+    }
   );
-
-  await transporter.sendMail({
-    from: "prasham1504@gmail.com",
-    to: email,
-    subject: "Interview Management OTP",
-    html: `
-      <h2>OTP Verification</h2>
-      <p>Your OTP is</p>
-      <h1>${otp}</h1>
-    `,
-  });
-
-  res.json({
-    success: true,
-    message: "OTP Sent Successfully",
-  });
-
 });
+
 
 app.post("/verify-otp", (req, res) => {
 
