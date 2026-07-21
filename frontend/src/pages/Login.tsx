@@ -86,12 +86,14 @@ import api from "../services/api";
 import "../index.css";
 
 interface Props {
-  onOtpSent: (email: string) => void;
+  onSuccess: () => void;
 }
 
-function Login({ onOtpSent }: Props) {
+function Login({ onSuccess }: Props) {
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+const [otp, setOtp] = useState("");
+const [otpSent, setOtpSent] = useState(false);
+const [loading, setLoading] = useState(false);
 
   const sendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -104,8 +106,9 @@ function Login({ onOtpSent }: Props) {
       });
 
       if (response.data.success) {
-        onOtpSent(email);
+        setOtpSent(true);
       }
+
     } catch (error: any) {
       alert(
         error?.response?.data?.message ||
@@ -115,6 +118,52 @@ function Login({ onOtpSent }: Props) {
       setLoading(false);
     }
   };
+
+  const verifyOtp = async () => {
+
+  try {
+
+    setLoading(true);
+
+    const response =
+      await api.post("/verify-otp", {
+        email,
+        otp,
+      });
+
+    if (response.data.success) {
+
+      sessionStorage.setItem(
+        "loggedInUserEmail",
+        email
+      );
+
+      onSuccess();
+
+    }
+
+  } catch (error: any) {
+
+    alert(
+      error?.response?.data?.message ||
+      "OTP Verification Failed"
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
+
+const resetEmail = () => {
+
+  setEmail("");
+  setOtp("");
+  setOtpSent(false);
+
+};
 
   return (
     <div className="custom-theme-black">
@@ -146,19 +195,41 @@ function Login({ onOtpSent }: Props) {
                       <div className="MuiFormControl-root MuiFormControl-fullWidth css-17qa0m8">
                         <div className="MuiFormControl-root MuiFormControl-fullWidth MuiTextField-root muiTextInput css-1vbfw84">
                           <div className="MuiInputBase-root MuiOutlinedInput-root MuiInputBase-colorPrimary MuiInputBase-fullWidth MuiInputBase-formControl css-1i614xw">
-                            <input
-                              aria-invalid="false"
-                              id="email"
-                              name="email"
-                              type="email"
-                              data-testid="email"
-                              className="MuiInputBase-input MuiOutlinedInput-input css-q9pwqh"
-                              placeholder="name@company.com"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              required
-                              disabled={loading}
-                            />
+                            {!otpSent ? (
+
+  <input
+    aria-invalid="false"
+    id="email"
+    name="email"
+    type="email"
+    data-testid="email"
+    className="MuiInputBase-input MuiOutlinedInput-input css-q9pwqh"
+    placeholder="name@company.com"
+    value={email}
+    onChange={(e) =>
+      setEmail(e.target.value)
+    }
+    required
+    disabled={loading}
+  />
+
+) : (
+
+  <div className="otp-email-display">
+
+    <span>{email}</span>
+
+    <button
+      type="button"
+      className="change-email-btn"
+      onClick={resetEmail}
+    >
+      ✕
+    </button>
+
+  </div>
+
+)}
                             <fieldset
                               aria-hidden="true"
                               className="MuiOutlinedInput-notchedOutline css-1ewnf7k"
@@ -174,23 +245,69 @@ function Login({ onOtpSent }: Props) {
                       </div>
                     </div>
                   </div>
+                  {otpSent && (
+
+  <div style={{ marginTop: "20px" }}>
+
+    <div className="labelTxt">
+      OTP
+    </div>
+
+    <div className="txtFieldValue">
+
+      <input
+        type="text"
+        placeholder="Enter OTP"
+        value={otp}
+        onChange={(e) =>
+          setOtp(e.target.value)
+        }
+        className="MuiInputBase-input MuiOutlinedInput-input css-q9pwqh"
+      />
+
+    </div>
+
+  </div>
+
+)}
 
                   {/* Submit Button */}
-                  <button
-                    type="submit"
-                    className="signInBtn"
-                    aria-label="Send OTP"
-                    disabled={loading}
-                    style={{
-                      border: "none",
-                      width: "100%",
-                      cursor: loading ? "not-allowed" : "pointer",
-                      opacity: loading ? 0.7 : 1,
-                      marginTop: "16px",
-                    }}
-                  >
-                    {loading ? "Sending..." : "Send OTP"}
-                  </button>
+                  {!otpSent ? (
+
+  <button
+    type="submit"
+    className="signInBtn"
+    disabled={loading}
+    style={{
+      border: "none",
+      width: "100%",
+      cursor: loading ? "not-allowed" : "pointer",
+      opacity: loading ? 0.7 : 1,
+      marginTop: "16px",
+    }}
+  >
+    {loading ? "Sending..." : "Send OTP"}
+  </button>
+
+) : (
+
+  <button
+    type="button"
+    className="signInBtn"
+    onClick={verifyOtp}
+    disabled={loading}
+    style={{
+      border: "none",
+      width: "100%",
+      cursor: loading ? "not-allowed" : "pointer",
+      opacity: loading ? 0.7 : 1,
+      marginTop: "16px",
+    }}
+  >
+    {loading ? "Verifying..." : "Verify OTP"}
+  </button>
+
+)}
                 </div>
               </form>
             </div>
