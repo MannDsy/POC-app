@@ -1,4 +1,4 @@
-
+const session = require("express-session");
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
@@ -6,8 +6,24 @@ const db = require("./db");
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+
 app.use(express.json());
+app.use(
+  session({
+    secret: "interview-monitoring-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 5 * 60 * 1000
+    }
+  })
+);
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -70,17 +86,9 @@ app.post("/send-otp", (req, res) => {
 
         const otp = generateOTP();
 
-        db.run(
-          `
-          INSERT INTO otp_verification
-          (
-            email,
-            otp
-          )
-          VALUES (?,?)
-          `,
-          [email, otp]
-        );
+       req.session.otp = otp;
+       req.session.email = email;
+       req.session.createdAt = Date.now();
 
         await transporter.sendMail({
           from: "prasham1504@gmail.com",
@@ -123,41 +131,50 @@ app.post("/verify-otp", (req, res) => {
 
   const { email, otp } = req.body;
 
-  db.get(
-    `
-    SELECT *
-    FROM otp_verification
-    WHERE email = ?
-    ORDER BY id DESC
-    LIMIT 1
-    `,
+  if (!req.session.otp) {
+    return res.status(400).json({
+      success: false,
+      message: "OTP session expired"
+    });
+  }
 
-    [email],
+  if (req.session.email !== email) {
+    return res.status(400).json({
+      success: false,
+      message: "Email mismatch"
+    });
+  }
 
-    (err, row) => {
+  const otpAge =
+    Date.now() - req.session.createdAt;
 
-      if (!row) {
+  if (otpAge > 5 * 60 * 1000) {
 
-        return res.json({
-          success: false,
-          message: "OTP Not Found"
-        });
-      }
+    return res.status(400).json({
+      success: false,
+      message: "OTP Expired"
+    });
 
-      if (row.otp === otp) {
+  }
 
-        return res.json({
-          success: true,
-          message: "Login Successful"
-        });
-      }
+  if (req.session.otp !== otp) {
 
-      return res.json({
-        success: false,
-        message: "Invalid OTP"
-      });
-    }
-  );
+    return res.status(400).json({
+      success: false,
+      message: "Invalid OTP"
+    });
+
+  }
+
+  req.session.user = email;
+
+  delete req.session.otp;
+
+  return res.json({
+    success: true,
+    message: "Login Successful"
+  });
+
 });
 
 // for home page
