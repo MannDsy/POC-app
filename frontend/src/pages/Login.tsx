@@ -54,7 +54,7 @@ function Login({ onSuccess }: Props) {
           "loggedInUserEmail",
           email
         );
-
+        
         onSuccess();
 
       }
