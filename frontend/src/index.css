@@ -137,14 +137,19 @@ code {
   --keyboard-focus: #3353f4; --screen-size: 100%;
 } */
 
-
-/* 1. Import Poppins font from Google Fonts at the top of src/index.css */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-
-/* 2. Global Font & Box-sizing Fixes */
 * {
   font-family: 'Poppins', sans-serif !important;
   box-sizing: border-box;
+}
+.loader-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: color-mix(in srgb,var(--white-1, #ffffff) 17.8%,transparent)!important;
+    z-index: 9999;
 }
 
 /* Theme variables */
@@ -203,21 +208,11 @@ code {
   --keyboard-focus: #3353f4; 
   --screen-size: 100%;
 }
-
 /* Ensure inputs and buttons explicitly use Poppins */
 input, button, select, textarea {
   font-family: 'Poppins', sans-serif !important;
 }
 
-@charset "UTF-8";.loader-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: color-mix(in srgb,var(--white-1, #ffffff) 17.8%,transparent)!important;
-    z-index: 9999
-}
 
 .spinner-overlay {
     position: fixed;
