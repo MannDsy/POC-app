@@ -1,7 +1,7 @@
 import { useState } from "react";
 import api from "../services/api";
 import "../index.css";
-
+import logo from "../assets/eInfochips_logo_black.png";
 interface Props {
   onSuccess: () => void;
 }
@@ -100,8 +100,9 @@ function Login({ onSuccess }: Props) {
 
             {/* Login Card Form */}
             <div className="loginFormDiv">
+              <img src={logo }alt="Company Logo" className="loginLogo"  />
               <div className="pmsTxt">Interview Management</div>
-              <div className="loginHeading">Secure OTP Authentication</div>
+              <div className="loginHeading">Login</div>
 
               <form onSubmit={sendOtp} className="outerContainer">
                 <div className="outerFormDiv">
