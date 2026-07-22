@@ -22608,6 +22608,23 @@ html body .workflowDataTable table tbody td .dropdown-outer .tooltipWrapper {
     min-width: 1rem!important
 }
 
+/* Black theme: greyish-black ring + light grey initials for contrast on dark header */
+.custom-theme-black .profileDropDownDiv .dropdown-outer {
+    border-color: #4a4a4a;
+}
+
+.custom-theme-black .profileDropDownDiv .dropdown-outer .isOnlySelectionDropdown .dropdown-selected-value {
+    color: #cfcfcf;
+}
+
+/* Blue theme: keep the existing blue ring explicitly (unchanged visually) */
+.custom-theme-blue .profileDropDownDiv .dropdown-outer {
+    border-color: var(--blue-4, #6ac6ff);
+}
+
+.custom-theme-blue .profileDropDownDiv .dropdown-outer .isOnlySelectionDropdown .dropdown-selected-value {
+    color: var(--blue-1, #0069aa);
+}
 .profileDropDownDiv .tooltipWrapper,.profileDropDownDiv .ellipsisText {
     min-width: 24px!important;
     min-width: 1.5rem!important
