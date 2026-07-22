@@ -8,9 +8,26 @@ import AssignedTasks from '../components/AssignedTasks';
 import TimesheetTracker from '../components/TimesheetTracker';
 import EmployeeDirectory from '../components/EmployeeDirectory';
 import SystemAccessLogs from '../components/SystemAccessLogs';
+import HeaderBar from '../components/HeaderBar';
+import Navbar, { type TabType } from '../components/NavBar';
 
-type TabType = 'home' | 'tasks' | 'timesheet' | 'directory' | 'logs';
 type ThemeType = 'black' | 'blue';
+
+// Helper to extract uppercase initials from email (e.g. john.doe@company.com -> JD)
+const getInitialsFromEmail = (email?: string | null): string => {
+  if (!email) return 'U';
+
+  const username = email.split('@')[0];
+  if (!username) return 'U';
+
+  const parts = username.split(/[._-]/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  return username.slice(0, 2).toUpperCase();
+};
 
 export default function HomePage() {
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
@@ -18,7 +35,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('home');
 
-  // Initialize theme based on user-scoped storage key
+  // Theme setup
   const loggedInEmail = sessionStorage.getItem("loggedInUserEmail");
   const initialThemeKey = loggedInEmail ? `appTheme_${loggedInEmail}` : "appTheme";
 
@@ -26,12 +43,16 @@ export default function HomePage() {
     return (localStorage.getItem(initialThemeKey) as ThemeType) || "black";
   });
 
-  // Dropdown & Submenu Visibility State
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [showThemeOptions, setShowThemeOptions] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 1. Fetch user profile from API
+  // 1. Synchronize HTML data-theme attribute with state
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  // 2. Fetch profile from API
   const fetchProfile = async () => {
     try {
       setLoading(true);
@@ -58,7 +79,7 @@ export default function HomePage() {
     }
   };
 
-  // 2. Load saved theme preferences whenever employee context updates
+  // 3. Load saved theme preferences
   useEffect(() => {
     if (employee?.email) {
       const userSavedTheme = localStorage.getItem(`appTheme_${employee.email}`) as ThemeType;
@@ -70,7 +91,7 @@ export default function HomePage() {
     }
   }, [employee]);
 
-  // 3. Page lifecycle and click-outside listener
+  // 4. Lifecycle event listeners
   useEffect(() => {
     fetchProfile();
 
@@ -96,7 +117,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // Handlers
   const handleLogout = () => {
     sessionStorage.removeItem("loggedInUserEmail");
     window.location.replace("/");
@@ -108,22 +128,9 @@ export default function HomePage() {
     setShowThemeOptions(false);
   };
 
-  const handleThemeChange = (selectedTheme: ThemeType) => {
-    setTheme(selectedTheme);
-    
-    if (employee?.email) {
-      localStorage.setItem(`appTheme_${employee.email}`, selectedTheme);
-    } else {
-      localStorage.setItem("appTheme", selectedTheme);
-    }
-
-    setIsDropdownOpen(false);
-    setShowThemeOptions(false);
-  };
-
   if (loading) {
     return (
-      <div className={`theme-${theme} homepage-centered-message`}>
+      <div className={`theme-${theme} homepage-centered-message`} data-theme={theme}>
         <div className="homepage-spinner"></div>
         <span>Loading Workspace Dashboard...</span>
       </div>
@@ -132,7 +139,7 @@ export default function HomePage() {
 
   if (error) {
     return (
-      <div className={`theme-${theme} homepage-centered-message`}>
+      <div className={`theme-${theme} homepage-centered-message`} data-theme={theme}>
         <div className="homepage-error-card">
           <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '8px' }}>
             Authentication Error
@@ -148,151 +155,38 @@ export default function HomePage() {
 
   if (!employee) {
     return (
-      <div className={`theme-${theme} homepage-centered-message`}>
+      <div className={`theme-${theme} homepage-centered-message`} data-theme={theme}>
         No active profile context detected.
       </div>
     );
   }
 
   return (
-    <div className={`theme-${theme} homepage-layout`}>
-      {/* HEADER SECTION */}
-      <header className="homepage-header">
-        <div className="homepage-logo">
-          <span className="homepage-logo-accent">eInfochips</span> Portal
-        </div>
+    <div className={`theme-${theme} homepage-layout`} data-theme={theme}>
+      {/* HEADER SECTION - HeaderBar renders its own .outerHeaderContainer (fixed, top: 0) */}
+      <HeaderBar
+        activeTab={activeTab}
+        userInitials={getInitialsFromEmail(employee.email || loggedInEmail)}
+        onTabChange={(tab) => setActiveTab(tab as TabType)}
+        onProfileClick={handleProfileClick}
+        onLogout={handleLogout}
+      />
 
-        <div className="homepage-user-info">
-          {/* User Role Badge */}
-          <span
-            className={`homepage-badge ${
-              employee.role === 'admin' ? 'homepage-badge-admin' : 'homepage-badge-user'
-            }`}
-          >
-            {employee.role === 'admin' ? 'Admin Profile' : 'Standard User'}
-          </span>
-
-          {/* User Name Dropdown Trigger */}
-          <div className="homepage-user-menu" ref={dropdownRef}>
-            <div
-              className="homepage-user-trigger"
-              onClick={() => {
-                setIsDropdownOpen(!isDropdownOpen);
-                setShowThemeOptions(false);
-              }}
-            >
-              <span className="homepage-user-name">
-                Welcome, <strong>{employee.name}</strong>
-              </span>
-              <span className={`homepage-dropdown-arrow ${isDropdownOpen ? 'open' : ''}`}>
-                ▼
-              </span>
-            </div>
-
-            {/* Header Dropdown Menu */}
-            {isDropdownOpen && (
-              <ul className="homepage-dropdown-menu">
-                <li className="homepage-dropdown-item" onClick={handleProfileClick}>
-                  👤 Profile
-                </li>
-
-                {/* Theme Switcher Toggle */}
-                <li
-                  className="homepage-dropdown-item"
-                  onClick={() => setShowThemeOptions(!showThemeOptions)}
-                  style={{ justifyContent: 'space-between' }}
-                >
-                  <span>🎨 Theme</span>
-                  <span style={{ fontSize: '0.7rem' }}>{showThemeOptions ? '▲' : '▼'}</span>
-                </li>
-
-                {/* Submenu Theme Items */}
-                {showThemeOptions && (
-                  <>
-                    <li
-                      className={`homepage-dropdown-subitem ${theme === 'black' ? 'active' : ''}`}
-                      onClick={() => handleThemeChange('black')}
-                    >
-                      <span>⚫ Dark Black</span>
-                      {theme === 'black' && <span>✓</span>}
-                    </li>
-                    <li
-                      className={`homepage-dropdown-subitem ${theme === 'blue' ? 'active' : ''}`}
-                      onClick={() => handleThemeChange('blue')}
-                    >
-                      <span>🔵 Classic Blue</span>
-                      {theme === 'blue' && <span>✓</span>}
-                    </li>
-                  </>
-                )}
-
-                <li className="homepage-dropdown-divider" />
-                
-                <li
-                  className="homepage-dropdown-item homepage-dropdown-logout"
-                  onClick={handleLogout}
-                >
-                  🚪 Logout
-                </li>
-              </ul>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <div className="homepage-main">
-        {/* SIDEBAR NAVIGATION */}
-        <aside className="homepage-sidebar">
-          <nav>
-            <ul className="homepage-menu-list">
-              <li className="homepage-menu-title">GENERAL MODULES</li>
-              
-              <li
-                className={`homepage-menu-item ${activeTab === 'home' ? 'homepage-menu-item-active' : ''}`}
-                onClick={() => setActiveTab('home')}
-              >
-                🏠 Home Workspace
-              </li>
-
-              <li
-                className={`homepage-menu-item ${activeTab === 'tasks' ? 'homepage-menu-item-active' : ''}`}
-                onClick={() => setActiveTab('tasks')}
-              >
-                📁 My Assigned Tasks
-              </li>
-
-              <li
-                className={`homepage-menu-item ${activeTab === 'timesheet' ? 'homepage-menu-item-active' : ''}`}
-                onClick={() => setActiveTab('timesheet')}
-              >
-                🕒 Timesheet Tracker
-              </li>
-
-              {employee.role === 'admin' && (
-                <>
-                  <li className="homepage-menu-title homepage-menu-title-admin">
-                    ADMIN MANAGEMENT
-                  </li>
-                  <li
-                    className={`homepage-menu-item ${activeTab === 'directory' ? 'homepage-menu-item-active' : ''}`}
-                    onClick={() => setActiveTab('directory')}
-                  >
-                    👥 Employee Directory
-                  </li>
-                  <li
-                    className={`homepage-menu-item ${activeTab === 'logs' ? 'homepage-menu-item-active' : ''}`}
-                    onClick={() => setActiveTab('logs')}
-                  >
-                    🔑 System Access Logs
-                  </li>
-                </>
-              )}
-            </ul>
-          </nav>
-        </aside>
+      {/*
+        .sidebarouter (rendered by Navbar) is position: fixed, top: 48px, width: 250px (see index.css).
+        Since the header and sidebar are both taken out of normal flow, this wrapper only needs to
+        push the main content area down/right past them - it doesn't need to be a flex row itself.
+      */}
+      <div className="homepage-main" style={{ paddingTop: '48px' }}>
+        {/* NEW MODULAR SIDEBAR NAVBAR */}
+        <Navbar
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
+          role={employee.role}
+        />
 
         {/* MAIN WORKSPACE VIEW */}
-        <main className="homepage-content">
+        <main className="homepage-content" style={{ marginLeft: '250px' }}>
           {activeTab === 'home' && <DashboardOverview employee={employee} />}
           {activeTab === 'tasks' && <AssignedTasks />}
           {activeTab === 'timesheet' && <TimesheetTracker />}

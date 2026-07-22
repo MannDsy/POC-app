@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../services/api";
 import "../index.css";
 import logo from "../assets/eInfochips_logo_black.png";
@@ -11,6 +11,20 @@ function Login({ onSuccess }: Props) {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Theme is a per-user preference, keyed by email (e.g. "theme:jane@company.com").
+  // Anyone without a saved preference — including every new login — gets black by default.
+  const [themeClass, setThemeClass] = useState("custom-theme-black");
+
+  useEffect(() => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setThemeClass("custom-theme-black");
+      return;
+    }
+    const savedTheme = localStorage.getItem(`theme:${normalizedEmail}`);
+    setThemeClass(savedTheme === "blue" ? "custom-theme-blue" : "custom-theme-black");
+  }, [email]);
 
   const sendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -83,7 +97,7 @@ function Login({ onSuccess }: Props) {
   };
 
   return (
-    <div className="custom-theme-black">
+    <div className={themeClass}>
       <main
         id="pms-main-content"
         tabIndex={-1}
@@ -91,13 +105,6 @@ function Login({ onSuccess }: Props) {
       >
         <div className="mainLoginContainer">
           <div className="outerDiv">
-            {/* Tagline / Left Side Hero */}
-            <div className="managerTxt">Manage Smart. Deliver Faster.</div>
-            <div className="projectTxt">
-              An Interview Management System that helps you plan, track, and manage
-              evaluations effortlessly in one place.
-            </div>
-
             {/* Login Card Form */}
             <div className="loginFormDiv">
               <img src={logo }alt="Company Logo" className="loginLogo"  />
