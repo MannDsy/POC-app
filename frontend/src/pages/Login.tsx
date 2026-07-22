@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../services/api";
 import "../index.css";
-import logo from "../assets/eInfochips_logo_black.png";
+import logo from "../assets/eInfochips_logo_black.svg";
 interface Props {
   onSuccess: () => void;
 }

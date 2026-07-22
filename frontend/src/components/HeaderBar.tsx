@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import logo from '../assets/eInfochips-Logo-white.png';
+import logo from '../assets/eInfochips-Logo-white.svg';
 export type HeaderTab = 'home' | 'tasks' | 'timesheet';
 export type AppTheme = 'black' | 'blue';
 
@@ -142,10 +142,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </nav>
       </div>
 
-      {/* Global Actions & Profile Section */}
       <div className="profileDiv">
         <div className="profileDiv-left">
-          {/* Global Search Tool */}
           <div className="tooltipWrapper">
             <div className="ellipsisText tooltipChildBox tooltipActive" aria-label="Global search">
               <div role="button" tabIndex={0} aria-label="Open global search">
