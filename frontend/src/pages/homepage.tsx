@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import '../index.css';
 
 // Import Modular View Components
@@ -30,6 +31,17 @@ const getInitialsFromEmail = (email?: string | null): string => {
 };
 
 export default function HomePage() {
+  const navigate = useNavigate();
+
+  // If session is missing (never logged in, or logged out in another tab)
+  // and someone lands on /home anyway, send them to /login.
+  useEffect(() => {
+    const user = sessionStorage.getItem("loggedInUserEmail");
+    if (!user) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate]);
+
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +127,7 @@ export default function HomePage() {
 
   const handleLogout = () => {
     sessionStorage.removeItem("loggedInUserEmail");
-    window.location.replace("/");
+    navigate("/login", { replace: true });
   };
 
   const handleProfileClick = () => {

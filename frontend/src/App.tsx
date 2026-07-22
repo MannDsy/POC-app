@@ -1,24 +1,32 @@
-import { useState } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import HomePage from "./pages/homepage";
 import "./App.css";
+
 function App() {
-
-  const [loggedIn, setLoggedIn] = useState(() => !!sessionStorage.getItem("loggedInUserEmail"));;
-
-  if (!loggedIn) {
-
-    return (
-      <Login
-        onSuccess={() =>
-          setLoggedIn(true)
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          sessionStorage.getItem("loggedInUserEmail")
+            ? <Navigate to="/home" replace />
+            : <Navigate to="/login" replace />
         }
       />
-    );
-
-  }
-
-  return <HomePage />;
+      <Route path="/login" element={<Login />} />
+      <Route path="/home" element={<HomePage />} />
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={sessionStorage.getItem("loggedInUserEmail") ? "/home" : "/login"}
+            replace
+          />
+        }
+      />
+    </Routes>
+  );
 }
 
 export default App;

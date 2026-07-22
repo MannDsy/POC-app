@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import "../index.css";
 import logo from "../assets/eInfochips_logo_black.png";
-interface Props {
-  onSuccess: () => void;
-}
 
-function Login({ onSuccess }: Props) {
+function Login() {
+  const navigate = useNavigate();
+
+  // If someone already has a valid session and lands on /login anyway
+  // (e.g. typed the URL directly, or pressed back), send them to /home.
+  useEffect(() => {
+    const user = sessionStorage.getItem("loggedInUserEmail");
+    if (user) {
+      navigate("/home", { replace: true });
+    }
+  }, [navigate]);
+
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -68,8 +77,8 @@ function Login({ onSuccess }: Props) {
           "loggedInUserEmail",
           email
         );
-        
-        onSuccess();
+
+        navigate("/home");
 
       }
 
