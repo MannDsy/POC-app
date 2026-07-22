@@ -77,23 +77,30 @@ background: #f1f5f9;
 }
 
 .change-email-btn {
-  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+
+  border: 1px solid #d1d5db;      /* the box */
+  border-radius: 6px;
   background: transparent;
-  font-size: 16px;         /* was 20px — a bit large next to 0.95rem email text */
+
+  font-size: 16px;
   font-weight: bold;
   color: #dc2626;
   cursor: pointer;
   line-height: 1;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 0;
+  flex-shrink: 0;                 /* stops it shrinking when email text is long */
 }
 
 .change-email-btn:hover {
-  background: #fee2e2;     /* subtle hover feedback instead of just color change */
+  background: #fee2e2;
+  border-color: #dc2626;
   color: #991b1b;
 }
 
-.change-email-btn:hover {
-  color: #991b1b;
-}
+
 
