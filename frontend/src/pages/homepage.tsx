@@ -14,7 +14,6 @@ import Navbar, { type TabType } from '../components/NavBar';
 
 type ThemeType = 'black' | 'blue';
 
-// Helper to extract uppercase initials from email (e.g. john.doe@company.com -> JD)
 const getInitialsFromEmail = (email?: string | null): string => {
   if (!email) return 'U';
 
@@ -33,8 +32,6 @@ const getInitialsFromEmail = (email?: string | null): string => {
 export default function HomePage() {
   const navigate = useNavigate();
 
-  // If session is missing (never logged in, or logged out in another tab)
-  // and someone lands on /home anyway, send them to /login.
   useEffect(() => {
     const user = sessionStorage.getItem("loggedInUserEmail");
     if (!user) {
@@ -48,10 +45,6 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
 
   const loggedInEmail = sessionStorage.getItem("loggedInUserEmail");
-
-  // ---- SINGLE SOURCE OF TRUTH FOR THEME ----
-  // Same key format as Login.tsx: `theme:${normalizedEmail}`
-  // Same class-name family as Login.tsx: custom-theme-black / custom-theme-blue
   const [theme, setTheme] = useState<ThemeType>(() => {
     if (!loggedInEmail) return "black";
     const saved = localStorage.getItem(`theme:${loggedInEmail.trim().toLowerCase()}`);
@@ -66,7 +59,8 @@ export default function HomePage() {
       localStorage.setItem(`theme:${loggedInEmail.trim().toLowerCase()}`, selected);
     }
   };
-  // -------------------------------------------
+
+  const headerActiveTab = activeTab === 'directory' || activeTab === 'logs' ? 'home' : activeTab;
 
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [showThemeOptions, setShowThemeOptions] = useState<boolean>(false);
@@ -171,9 +165,8 @@ export default function HomePage() {
 
   return (
     <div className={`${themeClass} homepage-layout`}>
-      {/* HEADER SECTION - HeaderBar renders its own .outerHeaderContainer (fixed, top: 0) */}
       <HeaderBar
-        activeTab={activeTab}
+        activeTab={headerActiveTab as any}
         userInitials={getInitialsFromEmail(employee.email || loggedInEmail)}
         theme={theme}
         onThemeChange={handleThemeChange}
@@ -181,22 +174,14 @@ export default function HomePage() {
         onProfileClick={handleProfileClick}
         onLogout={handleLogout}
       />
-
-      {/*
-        .sidebarouter (rendered by Navbar) is position: fixed, top: 48px, width: 250px (see index.css).
-        Since the header and sidebar are both taken out of normal flow, this wrapper only needs to
-        push the main content area down/right past them - it doesn't need to be a flex row itself.
-      */}
-      <div className="homepage-main" style={{ paddingTop: '48px' }}>
+      <div className="homepage-main" style={{ paddingTop: '48px', display: 'flex', width: '100%' }}>
         {/* SIDEBAR NAVBAR */}
         <Navbar
           activeTab={activeTab}
           onTabChange={(tab) => setActiveTab(tab)}
           role={employee.role}
         />
-
-        {/* MAIN WORKSPACE VIEW */}
-        <main className="homepage-content" style={{ marginLeft: '250px' }}>
+        <main className="homepage-content-responsive">
           {activeTab === 'home' && <DashboardOverview employee={employee} />}
           {activeTab === 'tasks' && <AssignedTasks />}
           {activeTab === 'timesheet' && <TimesheetTracker />}

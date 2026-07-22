@@ -1,16 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import logo from '../assets/eInfochips-Logo-white.svg';
+
 export type HeaderTab = 'home' | 'tasks' | 'timesheet';
 export type AppTheme = 'black' | 'blue';
 
 interface HeaderBarProps {
-  activeTab?: string;
+  activeTab?: HeaderTab;
   userInitials?: string;
   theme?: AppTheme;
-  onTabChange?: (tabName: string) => void;
+  onTabChange?: (tabName: HeaderTab) => void;
   onProfileClick?: () => void;
   onLogout?: () => void;
   onThemeChange?: (theme: AppTheme) => void;
+  onSearch?: (query: string) => void; // Optional search handler prop
 }
 
 const THEME_OPTIONS: { key: AppTheme; label: string; swatchClass: string }[] = [
@@ -24,12 +26,12 @@ const NAV_ITEMS: { key: HeaderTab; label: string; icon: React.ReactElement }[] =
     label: 'Dashboard',
     icon: (
       <svg
-        stroke="currentColor"
-        fill="none"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-        className="defaultSize navitemIcon"
-        xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      className="defaultSize navitemIcon"
+      xmlns="http://www.w3.org/2000/svg"
       >
         <rect x="3" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -43,12 +45,12 @@ const NAV_ITEMS: { key: HeaderTab; label: string; icon: React.ReactElement }[] =
     label: 'Tasks',
     icon: (
       <svg
-        stroke="currentColor"
-        fill="currentColor"
-        strokeWidth="0"
-        viewBox="0 0 24 24"
-        className="defaultSize navitemIcon"
-        xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      className="defaultSize navitemIcon"
+      xmlns="http://www.w3.org/2000/svg"
       >
         <path d="M20 2H8c-1.103 0-2 .897-2 2v12c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2V4c0-1.103-.897-2-2-2zM8 16V4h12l.002 12H8z" />
         <path d="M4 8H2v12c0 1.103.897 2 2 2h12v-2H4V8z" />
@@ -60,14 +62,12 @@ const NAV_ITEMS: { key: HeaderTab; label: string; icon: React.ReactElement }[] =
     label: 'Worklog',
     icon: (
       <svg
-        stroke="currentColor"
-        fill="none"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="defaultSize navitemIcon"
-        xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      className="defaultSize navitemIcon"
+      xmlns="http://www.w3.org/2000/svg"
       >
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 3" />
@@ -84,27 +84,47 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onProfileClick,
   onLogout,
   onThemeChange,
+  onSearch,
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showThemeOptions, setShowThemeOptions] = useState(false);
+  
+  // Search Bar States
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const profileRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // HeaderBar is now a fully CONTROLLED component when it comes to theme.
-  // It does NOT own theme state, does NOT read/write localStorage, and does NOT
-  // touch the DOM directly. It only displays whatever `theme` prop it's given,
-  // and reports the user's click upward via `onThemeChange`. The parent
-  // (HomePage) is the single source of truth for the active theme.
+  // Auto-focus input when search opens
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
 
+  // Click outside to close both Profile dropdown and Search input
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
         setShowThemeOptions(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (onSearch) {
+      onSearch(searchQuery);
+    }
+  };
 
   return (
     <header className="outerHeaderContainer" role="banner">
@@ -144,25 +164,103 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
       <div className="profileDiv">
         <div className="profileDiv-left">
-          <div className="tooltipWrapper">
+          {/* Interactive Global Search Tooltip & Expansion Box */}
+          <div className="tooltipWrapper" ref={searchRef}>
             <div className="ellipsisText tooltipChildBox tooltipActive" aria-label="Global search">
-              <div role="button" tabIndex={0} aria-label="Open global search">
-                <span>
-                  <svg
-                    stroke="currentColor"
-                    fill="currentColor"
-                    strokeWidth="0"
-                    viewBox="0 0 24 24"
-                    className="defaultSize iconSearch"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="none" d="M0 0h24v24H0z" />
-                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                  </svg>
-                </span>
-              </div>
-            </div>
-          </div>
+              {!isSearchOpen ? (
+              /* Closed State: Standalone Icon */
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Open global search"
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+        onClick={() => setIsSearchOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') setIsSearchOpen(true);
+        }}
+      >
+        <span>
+          <svg
+            stroke="currentColor"
+            fill="currentColor"
+            strokeWidth="0"
+            viewBox="0 0 24 24"
+            className="defaultSize iconSearch"
+            height="1em"
+            width="1em"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ color: 'var(--icon-header-icons, #ffffff)' }}
+          >
+            <path fill="none" d="M0 0h24v24H0z" />
+            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+          </svg>
+        </span>
+      </div>
+    ) : (
+      /* Open State: White Pill Input with Embedded Search Icon */
+      <form
+        onSubmit={handleSearchSubmit}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          background: '#ffffff',
+          borderRadius: '8px',
+          padding: '4px 12px',
+          width: '240px',
+          boxSizing: 'border-box',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+        }}
+      >
+        <input
+          ref={searchInputRef}
+          type="text"
+          placeholder="Search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            border: 'none',
+            outline: 'none',
+            background: 'transparent',
+            fontSize: '14px',
+            color: '#333333',
+            width: '100%',
+            padding: '2px 0',
+          }}
+        />
+        <button
+          type="submit"
+          aria-label="Search"
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginLeft: '6px',
+          }}
+        >
+          <svg
+            stroke="currentColor"
+            fill="currentColor"
+            strokeWidth="0"
+            viewBox="0 0 24 24"
+            height="1.1em"
+            width="1.1em"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ color: '#888888' }}
+          >
+            <path fill="none" d="M0 0h24v24H0z" />
+            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+          </svg>
+        </button>
+      </form>
+    )}
+  </div>
+</div>
+
+          <div className="" />
 
           {/* Info Tool */}
           <div className="tooltipWrapper">
@@ -177,7 +275,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className="defaultSize infoIcon"
+                    height="1em"
+                    width="1em"
                     xmlns="http://www.w3.org/2000/svg"
+                    style={{ color: 'var(--icon-header-icons)' }}
                   >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="16" x2="12" y2="12" />
