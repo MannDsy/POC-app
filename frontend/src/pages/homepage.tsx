@@ -35,24 +35,32 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('home');
 
-  // Theme setup
   const loggedInEmail = sessionStorage.getItem("loggedInUserEmail");
-  const initialThemeKey = loggedInEmail ? `appTheme_${loggedInEmail}` : "appTheme";
 
+  // ---- SINGLE SOURCE OF TRUTH FOR THEME ----
+  // Same key format as Login.tsx: `theme:${normalizedEmail}`
+  // Same class-name family as Login.tsx: custom-theme-black / custom-theme-blue
   const [theme, setTheme] = useState<ThemeType>(() => {
-    return (localStorage.getItem(initialThemeKey) as ThemeType) || "black";
+    if (!loggedInEmail) return "black";
+    const saved = localStorage.getItem(`theme:${loggedInEmail.trim().toLowerCase()}`);
+    return saved === "blue" ? "blue" : "black";
   });
+
+  const themeClass = theme === "blue" ? "custom-theme-blue" : "custom-theme-black";
+
+  const handleThemeChange = (selected: ThemeType) => {
+    setTheme(selected);
+    if (loggedInEmail) {
+      localStorage.setItem(`theme:${loggedInEmail.trim().toLowerCase()}`, selected);
+    }
+  };
+  // -------------------------------------------
 
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [showThemeOptions, setShowThemeOptions] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 1. Synchronize HTML data-theme attribute with state
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  // 2. Fetch profile from API
+  // Fetch profile from API
   const fetchProfile = async () => {
     try {
       setLoading(true);
@@ -79,19 +87,7 @@ export default function HomePage() {
     }
   };
 
-  // 3. Load saved theme preferences
-  useEffect(() => {
-    if (employee?.email) {
-      const userSavedTheme = localStorage.getItem(`appTheme_${employee.email}`) as ThemeType;
-      if (userSavedTheme) {
-        setTheme(userSavedTheme);
-      } else {
-        setTheme("black");
-      }
-    }
-  }, [employee]);
-
-  // 4. Lifecycle event listeners
+  // Lifecycle event listeners
   useEffect(() => {
     fetchProfile();
 
@@ -130,7 +126,7 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className={`theme-${theme} homepage-centered-message`} data-theme={theme}>
+      <div className={`${themeClass} homepage-centered-message`}>
         <div className="homepage-spinner"></div>
         <span>Loading Workspace Dashboard...</span>
       </div>
@@ -139,7 +135,7 @@ export default function HomePage() {
 
   if (error) {
     return (
-      <div className={`theme-${theme} homepage-centered-message`} data-theme={theme}>
+      <div className={`${themeClass} homepage-centered-message`}>
         <div className="homepage-error-card">
           <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '8px' }}>
             Authentication Error
@@ -155,18 +151,20 @@ export default function HomePage() {
 
   if (!employee) {
     return (
-      <div className={`theme-${theme} homepage-centered-message`} data-theme={theme}>
+      <div className={`${themeClass} homepage-centered-message`}>
         No active profile context detected.
       </div>
     );
   }
 
   return (
-    <div className={`theme-${theme} homepage-layout`} data-theme={theme}>
+    <div className={`${themeClass} homepage-layout`}>
       {/* HEADER SECTION - HeaderBar renders its own .outerHeaderContainer (fixed, top: 0) */}
       <HeaderBar
         activeTab={activeTab}
         userInitials={getInitialsFromEmail(employee.email || loggedInEmail)}
+        theme={theme}
+        onThemeChange={handleThemeChange}
         onTabChange={(tab) => setActiveTab(tab as TabType)}
         onProfileClick={handleProfileClick}
         onLogout={handleLogout}
@@ -178,7 +176,7 @@ export default function HomePage() {
         push the main content area down/right past them - it doesn't need to be a flex row itself.
       */}
       <div className="homepage-main" style={{ paddingTop: '48px' }}>
-        {/* NEW MODULAR SIDEBAR NAVBAR */}
+        {/* SIDEBAR NAVBAR */}
         <Navbar
           activeTab={activeTab}
           onTabChange={(tab) => setActiveTab(tab)}

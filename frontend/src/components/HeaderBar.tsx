@@ -18,19 +18,6 @@ const THEME_OPTIONS: { key: AppTheme; label: string; swatchClass: string }[] = [
   { key: 'blue', label: 'Blue', swatchClass: '' },
 ];
 
-function getSavedTheme(fallback: AppTheme): AppTheme {
-  try {
-    const email = sessionStorage.getItem('loggedInUserEmail');
-    if (email) {
-      const saved = localStorage.getItem(`theme:${email.trim().toLowerCase()}`);
-      if (saved === 'blue' || saved === 'black') return saved;
-    }
-  } catch {
-    // localStorage/sessionStorage unavailable — fall back to the given default
-  }
-  return fallback;
-}
-
 const NAV_ITEMS: { key: HeaderTab; label: string; icon: React.ReactElement }[] = [
   {
     key: 'home',
@@ -102,15 +89,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const [showThemeOptions, setShowThemeOptions] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // The `theme` prop is treated as an initial hint only — this component owns the
-  // live selection itself and applies it directly to the document, so the header,
-  // sidebar, and rest of the page all update immediately, regardless of whether
-  // a parent component ever feeds a new `theme` prop back in.
-  const [activeTheme, setActiveTheme] = useState<AppTheme>(() => getSavedTheme(theme));
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', activeTheme);
-  }, [activeTheme]);
+  // HeaderBar is now a fully CONTROLLED component when it comes to theme.
+  // It does NOT own theme state, does NOT read/write localStorage, and does NOT
+  // touch the DOM directly. It only displays whatever `theme` prop it's given,
+  // and reports the user's click upward via `onThemeChange`. The parent
+  // (HomePage) is the single source of truth for the active theme.
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -273,18 +256,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                       {THEME_OPTIONS.map((option) => (
                         <div
                           key={option.key}
-                          className={`theme-picker-item ${activeTheme === option.key ? 'active' : ''}`}
+                          className={`theme-picker-item ${theme === option.key ? 'active' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveTheme(option.key);
-                            try {
-                              const email = sessionStorage.getItem('loggedInUserEmail');
-                              if (email) {
-                                localStorage.setItem(`theme:${email.trim().toLowerCase()}`, option.key);
-                              }
-                            } catch {
-                              // localStorage/sessionStorage unavailable — theme just won't persist across sessions
-                            }
                             onThemeChange && onThemeChange(option.key);
                           }}
                         >
@@ -293,7 +267,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                             style={{ background: option.key === 'black' ? '#121212' : '#0069aa' }}
                           />
                           <span className="theme-picker-label">{option.label}</span>
-                          {activeTheme === option.key && <span className="theme-picker-check">✓</span>}
+                          {theme === option.key && <span className="theme-picker-check">✓</span>}
                         </div>
                       ))}
                     </div>
