@@ -36,6 +36,28 @@ function generateOTP() {
     100000 + Math.random() * 900000
   ).toString();
 }
+
+// ---- Ensure the interviews table exists (creates it once, no-op after that) ----
+db.run(`
+  CREATE TABLE IF NOT EXISTS interviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_name TEXT NOT NULL,
+    candidate_email TEXT NOT NULL,
+    candidate_phone TEXT,
+    primary_skill TEXT NOT NULL,
+    secondary_skill TEXT,
+    interviewer_email TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'scheduled',
+    created_at TEXT NOT NULL
+  )
+`, (err) => {
+  if (err) {
+    console.error("Failed to ensure interviews table exists:", err.message);
+  } else {
+    console.log("interviews table ready");
+  }
+});
+
 app.get("/", (req, res) => {
   res.send("Backend Running");
 });
@@ -221,6 +243,93 @@ app.get("/api/users/profile", (req, res) => {
   });
 });
 
+// ---- Start Interview: create a new interview record ----
+app.post("/api/interviews", (req, res) => {
+  const {
+    candidateName,
+    candidateEmail,
+    candidatePhone,
+    primarySkill,
+    secondarySkill,
+  } = req.body;
+
+  // Basic required-field validation (mirrors the frontend's `required` fields)
+  if (!candidateName || !candidateEmail || !primarySkill) {
+    return res.status(400).json({
+      success: false,
+      message: "Candidate name, candidate email, and primary skill are required.",
+    });
+  }
+
+  // Only a logged-in employee (interviewer) can start an interview
+  const interviewerEmail = req.session.user;
+  if (!interviewerEmail) {
+    return res.status(401).json({
+      success: false,
+      message: "You must be logged in to start an interview.",
+    });
+  }
+
+  const insertQuery = `
+    INSERT INTO interviews
+      (candidate_name, candidate_email, candidate_phone, primary_skill, secondary_skill, interviewer_email, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.run(
+    insertQuery,
+    [
+      candidateName,
+      candidateEmail,
+      candidatePhone || null,
+      primarySkill,
+      secondarySkill || null,
+      interviewerEmail,
+      new Date().toISOString(),
+    ],
+    function (err) {
+      if (err) {
+        console.error("Failed to create interview:", err);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create interview record.",
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: "Interview created successfully.",
+        interviewId: this.lastID,
+      });
+    }
+  );
+});
+
+// ---- Optional: list interviews (handy for a future "My Assigned Tasks" view) ----
+app.get("/api/interviews", (req, res) => {
+  const interviewerEmail = req.session.user;
+  if (!interviewerEmail) {
+    return res.status(401).json({
+      success: false,
+      message: "You must be logged in to view interviews.",
+    });
+  }
+
+  db.all(
+    `SELECT * FROM interviews WHERE interviewer_email = ? ORDER BY created_at DESC`,
+    [interviewerEmail],
+    (err, rows) => {
+      if (err) {
+        console.error("Failed to fetch interviews:", err);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to fetch interviews.",
+        });
+      }
+      return res.json({ success: true, interviews: rows });
+    }
+  );
+});
 
 app.listen(5000, () => {
   console.log("Server running on port 5000");

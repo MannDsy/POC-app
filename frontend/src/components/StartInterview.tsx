@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import api from '../services/api';
 
 interface StartInterviewModalProps {
   primaryThemeColor: string;
@@ -174,6 +175,7 @@ export default function StartInterviewModal({
   const [candidateName, setCandidateName] = useState<string>('');
   const [candidateEmail, setCandidateEmail] = useState<string>('');
   const [candidatePhone, setCandidatePhone] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
   // Primary Skill States
   const [primarySkill, setPrimarySkill] = useState<string>('');
@@ -206,21 +208,34 @@ export default function StartInterviewModal({
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const finalPrimarySkill = primarySkill === 'Others' ? customPrimarySkill : primarySkill;
     const finalSecondarySkill = secondarySkill === 'Others' ? customSecondarySkill : secondarySkill;
 
-    console.log('Interview Initiated:', {
-      candidateName,
-      candidateEmail,
-      candidatePhone,
-      primarySkill: finalPrimarySkill,
-      secondarySkill: finalSecondarySkill,
-    });
+    try {
+      setSubmitting(true);
 
-    handleClose();
+      const response = await api.post('/api/interviews', {
+        candidateName,
+        candidateEmail,
+        candidatePhone: candidatePhone || undefined,
+        primarySkill: finalPrimarySkill,
+        secondarySkill: finalSecondarySkill || undefined,
+      });
+
+      if (response.data.success) {
+        handleClose();
+      }
+    } catch (error: any) {
+      alert(
+        error?.response?.data?.message ||
+        'Failed to start interview. Please try again.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredPrimarySkills = SKILL_OPTIONS.filter((skill) =>
@@ -709,6 +724,7 @@ export default function StartInterviewModal({
               {/* Primary Submit Button */}
               <button
                 type="submit"
+                disabled={submitting}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -718,7 +734,8 @@ export default function StartInterviewModal({
                   color: '#ffffff',
                   fontSize: '15px',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.7 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -727,8 +744,8 @@ export default function StartInterviewModal({
                   transition: 'all 0.3s ease',
                 }}
               >
-                <span>Start Interview</span>
-                <span>→</span>
+                <span>{submitting ? 'Starting...' : 'Start Interview'}</span>
+                {!submitting && <span>→</span>}
               </button>
             </form>
           </div>
