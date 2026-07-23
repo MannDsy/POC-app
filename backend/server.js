@@ -19,8 +19,9 @@ app.use(
     secret: "interview-monitoring-secret",
     resave: false,
     saveUninitialized: false,
+    rolling: true, 
     cookie: {
-      maxAge: 5 * 60 * 1000
+      maxAge: 60 * 60 * 1000
     }
   })
 );

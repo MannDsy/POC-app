@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import HomePage from "./pages/homepage";
+import StartInterviewPage from "./pages/StartInterview";
 import "./App.css";
 
 function App() {
@@ -16,6 +17,10 @@ function App() {
       />
       <Route path="/login" element={<Login />} />
       <Route path="/home" element={<HomePage />} />
+      <Route
+        path="/interview/new"
+        element={<StartInterviewPage primaryThemeColor="#0069aa" />}
+      />
       <Route
         path="*"
         element={

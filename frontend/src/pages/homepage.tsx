@@ -11,7 +11,7 @@ import EmployeeDirectory from '../components/EmployeeDirectory';
 import SystemAccessLogs from '../components/SystemAccessLogs';
 import HeaderBar from '../components/HeaderBar';
 import Navbar, { type TabType } from '../components/NavBar';
-import StartInterviewModal from '../components/StartInterview';
+
 
 type ThemeType = 'black' | 'blue';
 
@@ -53,10 +53,6 @@ export default function HomePage() {
   });
 
   const themeClass = theme === "blue" ? "custom-theme-blue" : "custom-theme-black";
-  
-  // Dynamic primary theme color for buttons & highlights
-  const primaryThemeColor = theme === "blue" ? "#0069aa" : "#121212";
-  const lightAccentColor = theme === "blue" ? "#eff6ff" : "#f1f5f9";
 
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [showThemeOptions, setShowThemeOptions] = useState<boolean>(false);
@@ -190,12 +186,6 @@ export default function HomePage() {
 
         {/* MAIN WORKSPACE VIEW */}
         <main className="homepage-content" style={{ marginLeft: '20px', flex: 1, position: 'relative' }}>
-          {/* EXTRACTED INTERVIEW BUTTON & MODAL COMPONENT */}
-          <StartInterviewModal
-            primaryThemeColor={primaryThemeColor}
-            lightAccentColor={lightAccentColor}
-          />
-
           {activeTab === 'home' && <DashboardOverview employee={employee} />}
           {activeTab === 'tasks' && <AssignedTasks />}
           {activeTab === 'timesheet' && <TimesheetTracker />}
