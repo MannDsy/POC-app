@@ -84,43 +84,44 @@ app.post("/send-otp", (req, res) => {
 
       try {
 
-        const otp = generateOTP();
+  // const otp = generateOTP();
+  const otp = "12345"; // TEMP: hardcoded for testing, revert to generateOTP() later
 
-       req.session.otp = otp;
-       req.session.email = email;
-       req.session.createdAt = Date.now();
+ req.session.otp = otp;
+ req.session.email = email;
+ req.session.createdAt = Date.now();
 
-        await transporter.sendMail({
-          from: "prasham1504@gmail.com",
-          to: email,
-          subject:
-            "Interview Management OTP",
+  // await transporter.sendMail({
+  //   from: "prasham1504@gmail.com",
+  //   to: email,
+  //   subject:
+  //     "Interview Management OTP",
 
-          html: `
-            <h2>OTP Verification</h2>
+  //   html: `
+  //     <h2>OTP Verification</h2>
 
-            <p>Your OTP is:</p>
+  //     <p>Your OTP is:</p>
 
-            <h1>${otp}</h1>
-          `
-        });
+  //     <h1>${otp}</h1>
+  //   `
+  // });
 
-        return res.json({
-          success: true,
-          message:
-            "OTP Sent Successfully"
-        });
+  return res.json({
+    success: true,
+    message:
+      "OTP Sent Successfully"
+  });
 
-      } catch (error) {
+} catch (error) {
 
-        console.error(error);
+  console.error(error);
 
-        return res.status(500).json({
-          success: false,
-          message:
-            "Failed to send OTP"
-        });
-      }
+  return res.status(500).json({
+    success: false,
+    message:
+      "Failed to send OTP"
+  });
+}
 
     }
   );

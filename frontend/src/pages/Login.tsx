@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import "../index.css";
-import logo from "../assets/eInfochips_logo_black.png";
+import logo from "../assets/eInfochips_logo_black.svg";
 
 function Login() {
   const navigate = useNavigate();
@@ -21,19 +21,13 @@ function Login() {
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Theme is a per-user preference, keyed by email (e.g. "theme:jane@company.com").
-  // Anyone without a saved preference — including every new login — gets black by default.
-  const [themeClass, setThemeClass] = useState("custom-theme-black");
-
-  useEffect(() => {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      setThemeClass("custom-theme-black");
-      return;
-    }
-    const savedTheme = localStorage.getItem(`theme:${normalizedEmail}`);
-    setThemeClass(savedTheme === "blue" ? "custom-theme-blue" : "custom-theme-black");
-  }, [email]);
+  // Single-user laptop — theme is just "whatever was last picked", with no
+  // dependency on email at all. Reads once on mount, applies immediately,
+  // before the email field has anything typed into it.
+  const [themeClass] = useState(() => {
+    const lastUsed = localStorage.getItem("lastUsedTheme");
+    return lastUsed === "blue" ? "custom-theme-blue" : "custom-theme-black";
+  });
 
   const sendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
