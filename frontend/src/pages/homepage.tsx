@@ -7,7 +7,7 @@ import '../index.css';
 import DashboardOverview, { type EmployeeProfile } from '../components/DashboardOverview';
 import AssignedTasks from '../components/AssignedTasks';
 import TimesheetTracker from '../components/TimesheetTracker';
-import EmployeeDirectory from '../components/InterviewerDirectory';
+import InterviewerDirectory from '../components/InterviewerDirectory';
 import SystemAccessLogs from '../components/SystemAccessLogs';
 import HeaderBar from '../components/HeaderBar';
 import Navbar, { type TabType } from '../components/NavBar';
@@ -192,7 +192,7 @@ export default function HomePage() {
           {activeTab === 'home' && <DashboardOverview employee={employee} primaryThemeColor={primaryThemeColor} />}
           {activeTab === 'tasks' && <AssignedTasks />}
           {activeTab === 'timesheet' && <TimesheetTracker />}
-          {activeTab === 'directory' && employee.role === 'admin' && <EmployeeDirectory />}
+          {activeTab === 'directory' && employee.role === 'admin' && <InterviewerDirectory />}
           {activeTab === 'logs' && employee.role === 'admin' && <SystemAccessLogs />}
         </main>
       </div>

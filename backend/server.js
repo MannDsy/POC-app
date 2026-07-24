@@ -141,6 +141,26 @@ db.run(`
   }
 });
 
+
+// ---- Ensure the employees table exists ----
+db.run(`
+  CREATE TABLE IF NOT EXISTS employees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gid TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    isAdmin INTEGER NOT NULL DEFAULT 0
+  )
+`, (err) => {
+  if (err) {
+    console.error("Failed to ensure employees table exists:", err.message);
+  } else {
+    console.log("employees table ready");
+  }
+});
+
+
 app.get("/", (req, res) => {
   res.send("Backend Running");
 });
@@ -476,4 +496,95 @@ transporter.verify((error, success) => {
   } else {
     console.log("Mail Server Ready");
   }
+});
+
+
+// ---- Upsert Employees/Interviewers Endpoint ----
+app.post("/api/employees/upsert", (req, res) => {
+  const employees = req.body;
+
+  // 1. Array validation
+  if (!Array.isArray(employees) || employees.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "An array with at least one employee record is required.",
+    });
+  }
+
+  // 2. Format & Regex Validation
+  const isNumericOnly = /^\d+$/;
+  const isDomainValid = /^[a-zA-Z0-9._%+-]+@einfochips\.com$/i;
+
+  for (let i = 0; i < employees.length; i++) {
+    const emp = employees[i];
+    const rowNum = i + 1;
+
+    if (!emp.gid || !isNumericOnly.test(emp.gid.toString().trim())) {
+      return res.status(400).json({
+        success: false,
+        message: `Row ${rowNum}: GID must contain numbers only.`,
+      });
+    }
+
+    if (!emp.name || isNumericOnly.test(emp.name.toString().trim())) {
+      return res.status(400).json({
+        success: false,
+        message: `Row ${rowNum}: Name cannot consist of numbers only.`,
+      });
+    }
+
+    if (!emp.email || !isDomainValid.test(emp.email.toString().trim())) {
+      return res.status(400).json({
+        success: false,
+        message: `Row ${rowNum}: Email must be a valid '@einfochips.com' address.`,
+      });
+    }
+  }
+
+  // 3. Database Execution
+  const upsertQuery = `
+    INSERT INTO employees (gid, name, email, isActive, isAdmin)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(gid) DO UPDATE SET
+      name = excluded.name,
+      email = excluded.email,
+      isActive = excluded.isActive,
+      isAdmin = excluded.isAdmin
+  `;
+
+  let completed = 0;
+  let hasError = false;
+
+  employees.forEach((emp) => {
+    db.run(
+      upsertQuery,
+      [
+        emp.gid.toString().trim(),
+        emp.name.toString().trim(),
+        emp.email.toString().trim().toLowerCase(),
+        emp.isActive ?? 1,
+        emp.isAdmin ?? 0,
+      ],
+      function (err) {
+        if (hasError) return;
+
+        if (err) {
+          hasError = true;
+          console.error("Database Insert/Update Error:", err.message);
+          return res.status(500).json({
+            success: false,
+            message: `Database Error: ${err.message}`,
+          });
+        }
+
+        completed++;
+        if (completed === employees.length && !res.headersSent) {
+          return res.status(200).json({
+            success: true,
+            message: "Panelist/User records updated successfully!",
+          });
+        }
+      }
+    );
+  });
 });

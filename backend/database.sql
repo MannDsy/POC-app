@@ -1,2 +1,2 @@
 SELECT *
-FROM otp_verification;
+FROM employees;

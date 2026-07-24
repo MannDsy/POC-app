@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import HomePage from "./pages/homepage";
 import StartInterviewPage from "./pages/StartInterview";
+import InterviewerDirectory from './components/InterviewerDirectory';
 import "./App.css";
 
 function App() {
