@@ -21,7 +21,9 @@ export default function InterviewerDirectory() {
   });
 
   const [rows, setRows] = useState<EmployeeRow[]>([createEmptyRow()]);
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,11 +33,28 @@ export default function InterviewerDirectory() {
 
   const handleRemoveRow = (id: string) => {
     if (rows.length === 1) return;
-    setRows(rows.filter((r) => r.id !== id));
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    
+    // Clean up error for removed row
+    setRowErrors((prev) => {
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
+    });
   };
 
   const handleInputChange = (id: string, field: keyof EmployeeRow, value: any) => {
     if (statusMessage) setStatusMessage(null);
+    if (importError) setImportError(null);
+
+    // Clear error for the specific row when user modifies its input
+    if (rowErrors[id]) {
+      setRowErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    }
 
     setRows((prevRows) =>
       prevRows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
@@ -45,6 +64,8 @@ export default function InterviewerDirectory() {
   // --- Import .xls / CSV File Upload Logic ---
   const handleImportButtonClick = () => {
     setStatusMessage(null);
+    setImportError(null);
+    setRowErrors({});
     fileInputRef.current?.click();
   };
 
@@ -65,11 +86,9 @@ export default function InterviewerDirectory() {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ];
 
+    // File format check
     if (!hasValidExtension && !validMimeTypes.includes(file.type)) {
-      setStatusMessage({
-        type: 'error',
-        text: 'Invalid file format. Please upload a valid CSV, Excel (.xls/.xlsx), or exported Google Sheet file.',
-      });
+      setImportError('Importing file failed. Invalid file format.');
       return;
     }
 
@@ -78,12 +97,12 @@ export default function InterviewerDirectory() {
     reader.onload = (event) => {
       try {
         const buffer = event.target?.result;
-        if (!buffer) throw new Error('Could not read file contents.');
+        if (!buffer) throw new Error('Unreadable binary content.');
 
         const workbook = XLSX.read(buffer, { type: 'binary' });
 
         if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-          throw new Error('No sheets found in workbook.');
+          throw new Error('No valid sheet found.');
         }
 
         const firstSheetName = workbook.SheetNames[0];
@@ -91,10 +110,33 @@ export default function InterviewerDirectory() {
         const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
         if (!rawData || rawData.length === 0) {
-          setStatusMessage({
-            type: 'error',
-            text: 'Uploaded file is empty or could not be parsed.',
-          });
+          throw new Error('Sheet is empty or structure is incompatible.');
+        }
+
+        // --- Column Name Validation Logic ---
+        const actualKeys = Object.keys(rawData[0]).map((key) =>
+          key.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+        );
+
+        const requiredFieldsConfig: { name: string; keys: string[] }[] = [
+          { name: 'GID', keys: ['gid', 'id', 'empid', 'employeeid'] },
+          { name: 'NAME', keys: ['name', 'fullname', 'interviewer', 'interviewername'] },
+          { name: 'EMAIL', keys: ['email', 'officialemail', 'emailid', 'mail'] },
+          { name: 'isActive', keys: ['isactive', 'status', 'panelstatus', 'active'] },
+          { name: 'isAdmin', keys: ['isadmin', 'role', 'accesslevel', 'admin'] },
+        ];
+
+        const missingFields: string[] = [];
+
+        for (const field of requiredFieldsConfig) {
+          const isPresent = field.keys.some((possibleKey) => actualKeys.includes(possibleKey));
+          if (!isPresent) {
+            missingFields.push(field.name);
+          }
+        }
+
+        if (missingFields.length > 0) {
+          setImportError(`Missing required column(s): ${missingFields.join(', ')}.`);
           return;
         }
 
@@ -136,24 +178,20 @@ export default function InterviewerDirectory() {
         });
 
         setRows([...importedRows]);
+        setRowErrors({});
+        setImportError(null);
         setStatusMessage({
           type: 'success',
           text: `Upload successful! Loaded ${importedRows.length} record(s) from "${file.name}".`,
         });
-      } catch (err: any) {
-        console.error('File parsing error:', err);
-        setStatusMessage({
-          type: 'error',
-          text: err.message || 'Error processing file. Please ensure it is a valid spreadsheet or CSV.',
-        });
+      } catch (err) {
+        console.error('File import error:', err);
+        setImportError('Importing file failed.');
       }
     };
 
     reader.onerror = () => {
-      setStatusMessage({
-        type: 'error',
-        text: 'File upload failed. Please try again.',
-      });
+      setImportError('Importing file failed.');
     };
 
     reader.readAsBinaryString(file);
@@ -162,41 +200,38 @@ export default function InterviewerDirectory() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage(null);
+    setImportError(null);
+    setRowErrors({});
 
+    // --- Validation Logic ---
     const isNumericOnly = /^\d+$/;
     const isDomainValid = /^[a-zA-Z0-9._%+-]+@einfochips\.com$/i;
+    const newErrors: Record<string, string> = {};
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-      const rowNum = i + 1;
       const trimmedGid = r.gid.trim();
       const trimmedName = r.name.trim();
       const trimmedEmail = r.email.trim();
 
       if (!trimmedGid) {
-        setStatusMessage({ type: 'error', text: `Row ${rowNum}: Interviewer ID (GID) is required.` });
-        return;
+        newErrors[r.id] = 'Interviewer ID (GID) is required.';
+      } else if (!isNumericOnly.test(trimmedGid)) {
+        newErrors[r.id] = 'GID must contain numbers only.';
+      } else if (!trimmedName) {
+        newErrors[r.id] = 'Interviewer Name is required.';
+      } else if (isNumericOnly.test(trimmedName)) {
+        newErrors[r.id] = 'Name cannot consist of numbers only.';
+      } else if (!trimmedEmail) {
+        newErrors[r.id] = 'Email ID is required.';
+      } else if (!isDomainValid.test(trimmedEmail)) {
+        newErrors[r.id] = "Email must be a valid '@einfochips.com' address.";
       }
-      if (!isNumericOnly.test(trimmedGid)) {
-        setStatusMessage({ type: 'error', text: `Row ${rowNum}: GID must contain numbers only.` });
-        return;
-      }
-      if (!trimmedName) {
-        setStatusMessage({ type: 'error', text: `Row ${rowNum}: Interviewer Name is required.` });
-        return;
-      }
-      if (isNumericOnly.test(trimmedName)) {
-        setStatusMessage({ type: 'error', text: `Row ${rowNum}: Name cannot consist of numbers only.` });
-        return;
-      }
-      if (!trimmedEmail) {
-        setStatusMessage({ type: 'error', text: `Row ${rowNum}: Email ID is required.` });
-        return;
-      }
-      if (!isDomainValid.test(trimmedEmail)) {
-        setStatusMessage({ type: 'error', text: `Row ${rowNum}: Email must be a valid '@einfochips.com' address.` });
-        return;
-      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setRowErrors(newErrors);
+      return;
     }
 
     setIsSubmitting(true);
@@ -232,6 +267,7 @@ export default function InterviewerDirectory() {
 
       setStatusMessage({ type: 'success', text: data.message || 'Panelist/User records updated successfully!' });
       setRows([createEmptyRow()]);
+      setRowErrors({});
     } catch (err: any) {
       setStatusMessage({ type: 'error', text: err.message || 'Network request failed.' });
     } finally {
@@ -259,8 +295,8 @@ export default function InterviewerDirectory() {
           </p>
         </div>
 
-        {/* Hidden File Input & Themed Import Button */}
-        <div>
+        {/* Import Button Container with Pointing Error Tooltip */}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
           <input
             type="file"
             ref={fileInputRef}
@@ -296,6 +332,45 @@ export default function InterviewerDirectory() {
             </svg>
             Import .xls
           </button>
+
+          {/* Pointing Error Box for Import Action */}
+          {importError && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                zIndex: 10,
+                backgroundColor: '#fef2f2',
+                color: '#991b1b',
+                border: '1px solid #fecaca',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {/* Upward pointing arrow */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '24px',
+                  width: 0,
+                  height: 0,
+                  borderLeft: '6px solid transparent',
+                  borderRight: '6px solid transparent',
+                  borderBottom: '6px solid #fecaca',
+                }}
+              />
+              <span>{importError}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -309,199 +384,256 @@ export default function InterviewerDirectory() {
           border: '1px solid var(--border-color)',
         }}
       >
-        <h2 className="theme-text-primary" style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 20px 0' }}>
-          Add/Update Interviewer List
-        </h2>
-
-        {/* Status Notification (Themed) */}
-        {statusMessage && (
+        <form onSubmit={handleSubmit}>
+          {/* Section Header with "Add/Update Interviewer List" and relocated "Save & Sync Panelists" button */}
           <div
             style={{
-              padding: '12px 16px',
-              borderRadius: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
               marginBottom: '20px',
-              fontSize: '14px',
-              fontWeight: 500,
-              backgroundColor: statusMessage.type === 'success' ? 'var(--success-bg, #f0fdf4)' : 'var(--error-bg, #fef2f2)',
-              color: statusMessage.type === 'success' ? 'var(--success-color, #166534)' : 'var(--error-color, #991b1b)',
-              border: `1px solid ${statusMessage.type === 'success' ? 'var(--success-border, #bbf7d0)' : 'var(--error-border, #fecaca)'}`,
             }}
           >
-            {statusMessage.text}
-          </div>
-        )}
+            <h2 className="theme-text-primary" style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
+              Add/Update Interviewer List
+            </h2>
 
-        <form onSubmit={handleSubmit}>
-          {/* Dynamic Rows */}
-          {rows.map((row) => (
-            <div
-              key={row.id}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="theme-button-primary"
               style={{
-                display: 'grid',
-                gridTemplateColumns: '1.2fr 2fr 2.5fr 1.5fr 1.5fr auto',
-                gap: '12px',
-                alignItems: 'center',
-                backgroundColor: 'var(--primary-light-bg)',
-                padding: '16px',
                 borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                marginBottom: '16px',
+                padding: '10px 24px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
               }}
             >
-              {/* GID (Numbers Only) */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '4px' }}>
-                  GID <span className="theme-text-primary">*</span>
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="GID"
-                  value={row.gid}
-                  onChange={(e) => handleInputChange(row.id, 'gid', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color, #cbd5e1)',
-                    backgroundColor: 'var(--input-bg, #ffffff)',
-                    color: 'var(--text-color, #1e293b)',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
+              {isSubmitting ? 'Saving Records...' : 'Save & Sync Panelists'}
+            </button>
+          </div>
 
-              {/* Name */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '4px' }}>
-                  Name <span className="theme-text-primary">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={row.name}
-                  onChange={(e) => handleInputChange(row.id, 'name', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color, #cbd5e1)',
-                    backgroundColor: 'var(--input-bg, #ffffff)',
-                    color: 'var(--text-color, #1e293b)',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '4px' }}>
-                  Official Email <span className="theme-text-primary">*</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="name@einfochips.com"
-                  value={row.email}
-                  onChange={(e) => handleInputChange(row.id, 'email', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color, #cbd5e1)',
-                    backgroundColor: 'var(--input-bg, #ffffff)',
-                    color: 'var(--text-color, #1e293b)',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              {/* Panel Status Radio Buttons */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '6px' }}>
-                  Panel Status
-                </label>
-                <div style={{ display: 'flex', gap: '12px', fontSize: '13px', color: 'var(--text-color, #1e293b)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      className="theme-accent-input"
-                      name={`isActive-${row.id}`}
-                      checked={row.isActive === 1}
-                      onChange={() => handleInputChange(row.id, 'isActive', 1)}
-                    />
-                    Active
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      className="theme-accent-input"
-                      name={`isActive-${row.id}`}
-                      checked={row.isActive === 0}
-                      onChange={() => handleInputChange(row.id, 'isActive', 0)}
-                    />
-                    Inactive
-                  </label>
-                </div>
-              </div>
-
-              {/* Access Level Radio Buttons */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '6px' }}>
-                  Access Level
-                </label>
-                <div style={{ display: 'flex', gap: '12px', fontSize: '13px', color: 'var(--text-color, #1e293b)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      className="theme-accent-input"
-                      name={`isAdmin-${row.id}`}
-                      checked={row.isAdmin === 1}
-                      onChange={() => handleInputChange(row.id, 'isAdmin', 1)}
-                    />
-                    Admin
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      className="theme-accent-input"
-                      name={`isAdmin-${row.id}`}
-                      checked={row.isAdmin === 0}
-                      onChange={() => handleInputChange(row.id, 'isAdmin', 0)}
-                    />
-                    User
-                  </label>
-                </div>
-              </div>
-
-              {/* Delete Row Button */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', visibility: 'hidden', marginBottom: '4px' }}>Remove</label>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveRow(row.id)}
-                  disabled={rows.length === 1}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: rows.length === 1 ? 'var(--border-color, #cbd5e1)' : '#ef4444',
-                    fontSize: '18px',
-                    fontWeight: 'bold',
-                    cursor: rows.length === 1 ? 'not-allowed' : 'pointer',
-                    padding: '6px 8px',
-                  }}
-                  title="Remove Row"
-                >
-                  ✕
-                </button>
-              </div>
+          {/* Global Status Notification */}
+          {statusMessage && (
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                fontSize: '14px',
+                fontWeight: 500,
+                backgroundColor: statusMessage.type === 'success' ? 'var(--success-bg, #f0fdf4)' : 'var(--error-bg, #fef2f2)',
+                color: statusMessage.type === 'success' ? 'var(--success-color, #166534)' : 'var(--error-color, #991b1b)',
+                border: `1px solid ${statusMessage.type === 'success' ? 'var(--success-border, #bbf7d0)' : 'var(--error-border, #fecaca)'}`,
+              }}
+            >
+              {statusMessage.text}
             </div>
-          ))}
+          )}
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+          {/* Dynamic Rows */}
+          {rows.map((row) => {
+            const rowError = rowErrors[row.id];
+
+            return (
+              <div
+                key={row.id}
+                style={{
+                  backgroundColor: 'var(--primary-light-bg)',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  border: rowError ? '1px solid #f87171' : '1px solid var(--border-color)',
+                  marginBottom: '16px',
+                  transition: 'border-color 0.2s ease, background-color 0.2s ease',
+                }}
+              >
+                {/* Per-Row Inline Error Message */}
+                {rowError && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#dc2626',
+                      backgroundColor: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <span>{rowError}</span>
+                  </div>
+                )}
+
+                {/* Grid Inputs Row */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.2fr 2fr 2.5fr 1.5fr 1.5fr auto',
+                    gap: '12px',
+                    alignItems: 'center',
+                  }}
+                >
+                  {/* GID */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '4px' }}>
+                      GID <span className="theme-text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="GID"
+                      value={row.gid}
+                      onChange={(e) => handleInputChange(row.id, 'gid', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: rowError && rowError.includes('GID') ? '1px solid #ef4444' : '1px solid var(--border-color, #cbd5e1)',
+                        backgroundColor: 'var(--input-bg, #ffffff)',
+                        color: 'var(--text-color, #1e293b)',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  {/* Name */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '4px' }}>
+                      Name <span className="theme-text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={row.name}
+                      onChange={(e) => handleInputChange(row.id, 'name', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: rowError && rowError.includes('Name') ? '1px solid #ef4444' : '1px solid var(--border-color, #cbd5e1)',
+                        backgroundColor: 'var(--input-bg, #ffffff)',
+                        color: 'var(--text-color, #1e293b)',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '4px' }}>
+                      Official Email <span className="theme-text-primary">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="name@einfochips.com"
+                      value={row.email}
+                      onChange={(e) => handleInputChange(row.id, 'email', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: rowError && rowError.includes('Email') ? '1px solid #ef4444' : '1px solid var(--border-color, #cbd5e1)',
+                        backgroundColor: 'var(--input-bg, #ffffff)',
+                        color: 'var(--text-color, #1e293b)',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  {/* Panel Status Radio Buttons */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '6px' }}>
+                      Panel Status
+                    </label>
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '13px', color: 'var(--text-color, #1e293b)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          className="theme-accent-input"
+                          name={`isActive-${row.id}`}
+                          checked={row.isActive === 1}
+                          onChange={() => handleInputChange(row.id, 'isActive', 1)}
+                        />
+                        Active
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          className="theme-accent-input"
+                          name={`isActive-${row.id}`}
+                          checked={row.isActive === 0}
+                          onChange={() => handleInputChange(row.id, 'isActive', 0)}
+                        />
+                        Inactive
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Access Level Radio Buttons */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-color, #334155)', marginBottom: '6px' }}>
+                      Access Level
+                    </label>
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '13px', color: 'var(--text-color, #1e293b)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          className="theme-accent-input"
+                          name={`isAdmin-${row.id}`}
+                          checked={row.isAdmin === 1}
+                          onChange={() => handleInputChange(row.id, 'isAdmin', 1)}
+                        />
+                        Admin
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          className="theme-accent-input"
+                          name={`isAdmin-${row.id}`}
+                          checked={row.isAdmin === 0}
+                          onChange={() => handleInputChange(row.id, 'isAdmin', 0)}
+                        />
+                        User
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Delete Row Button */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', visibility: 'hidden', marginBottom: '4px' }}>Remove</label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveRow(row.id)}
+                      disabled={rows.length === 1}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: rows.length === 1 ? 'var(--border-color, #cbd5e1)' : '#ef4444',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        cursor: rows.length === 1 ? 'not-allowed' : 'pointer',
+                        padding: '6px 8px',
+                      }}
+                      title="Remove Row"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Bottom Action Bar */}
+          <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginTop: '20px' }}>
             <button
               type="button"
               onClick={handleAddRow}
@@ -515,21 +647,6 @@ export default function InterviewerDirectory() {
               }}
             >
               + Add Interviewer
-            </button>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="theme-button-primary"
-              style={{
-                borderRadius: '8px',
-                padding: '10px 28px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isSubmitting ? 'Saving Records...' : 'Save & Sync Panelists'}
             </button>
           </div>
         </form>
