@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import api from '../services/api';
@@ -256,6 +256,16 @@ export default function StartInterviewPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!/^[A-Za-z\s]+$/.test(candidateName.trim())) {
+      alert('Candidate name should only contain alphabets and spaces.');
+      return;
+    }
+
+    if (candidatePhone && !/^\d{10}$/.test(candidatePhone)) {
+      alert('Candidate phone number must be exactly 10 digits.');
+      return;
+    }
+
     if (primarySkills.length === 0) {
       alert('Please select at least one primary skill.');
       return;
@@ -427,7 +437,11 @@ export default function StartInterviewPage() {
                     required
                     placeholder="Full name of the candidate"
                     value={candidateName}
-                    onChange={(e) => setCandidateName(e.target.value)}
+                    onChange={(e) => {
+                      // Only letters and spaces allowed — strips numbers/symbols as they type
+                      const lettersOnly = e.target.value.replace(/[^A-Za-z\s]/g, '');
+                      setCandidateName(lettersOnly);
+                    }}
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: '8px',
                       border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a',
@@ -462,9 +476,14 @@ export default function StartInterviewPage() {
                   </label>
                   <input
                     type="tel"
-                    placeholder="+1 234 567 8900"
+                    placeholder="10-digit phone number"
                     value={candidatePhone}
-                    onChange={(e) => setCandidatePhone(e.target.value)}
+                    maxLength={10}
+                    onChange={(e) => {
+                      // Digits only, capped at 10 characters as they type
+                      const digitsOnly = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                      setCandidatePhone(digitsOnly);
+                    }}
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: '8px',
                       border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a',
@@ -507,7 +526,7 @@ export default function StartInterviewPage() {
                         <span
                           style={chipRemoveStyle}
                           onClick={(e) => {
-                            e.stopPropagation(); // don't toggle the dropdown when removing a chip
+                            e.stopPropagation();
                             togglePrimarySkill(name);
                           }}
                         >
