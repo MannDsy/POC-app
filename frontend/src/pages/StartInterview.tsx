@@ -129,6 +129,9 @@ export default function StartInterviewPage() {
   const [candidateName, setCandidateName] = useState<string>(draft?.candidateName ?? '');
   const [candidateEmail, setCandidateEmail] = useState<string>(draft?.candidateEmail ?? '');
   const [candidatePhone, setCandidatePhone] = useState<string>(draft?.candidatePhone ?? '');
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // ---- Skills, fetched from the skills table via /api/skills ----
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -157,6 +160,7 @@ export default function StartInterviewPage() {
   const [experienceRanges, setExperienceRanges] = useState<{ id: number; label: string }[]>([]);
   const [experienceLoading, setExperienceLoading] = useState<boolean>(true);
   const [experienceRange, setExperienceRange] = useState<string>(draft?.experienceRange ?? '');
+  const [experienceSelectError, setExperienceSelectError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchExperienceRanges = async () => {
@@ -181,6 +185,7 @@ export default function StartInterviewPage() {
   const [isPrimaryDropdownOpen, setIsPrimaryDropdownOpen] = useState<boolean>(false);
   const [primaryCustomInput, setPrimaryCustomInput] = useState<string>('');
   const primaryFieldRef = React.useRef<HTMLDivElement>(null);
+  const [primarySkillsError, setPrimarySkillsError] = useState<string | null>(null);
 
   // ---- Secondary Skill (multi-select) ----
   const [secondarySkills, setSecondarySkills] = useState<string[]>(draft?.secondarySkills ?? []);
@@ -207,6 +212,7 @@ export default function StartInterviewPage() {
     setPrimarySkills((prev) =>
       prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]
     );
+    setPrimarySkillsError(null);
   };
 
   const toggleSecondarySkill = (name: string) => {
@@ -228,6 +234,7 @@ export default function StartInterviewPage() {
 
     if (trimmed && !primarySkills.includes(trimmed)) {
       setPrimarySkills((prev) => [...prev, trimmed]);
+      setPrimarySkillsError(null);
     }
     setPrimaryCustomInput('');
   };
@@ -256,23 +263,55 @@ export default function StartInterviewPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!/^[A-Za-z\s]+$/.test(candidateName.trim())) {
-      alert('Candidate name should only contain alphabets and spaces.');
-      return;
+    let hasError = false;
+
+    // Candidate Name
+    if (!candidateName.trim()) {
+      setNameError('Candidate name is required.');
+      hasError = true;
+    } else if (!/^[A-Za-z\s]+$/.test(candidateName.trim())) {
+      setNameError('Candidate name must contain alphabets only.');
+      hasError = true;
+    } else {
+      setNameError(null);
     }
 
+    // Candidate Email
+    if (!candidateEmail.trim()) {
+      setEmailError('Candidate email is required.');
+      hasError = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateEmail.trim())) {
+      setEmailError('Please enter a valid email address.');
+      hasError = true;
+    } else {
+      setEmailError(null);
+    }
+
+    // Candidate Phone (optional, but must be valid if provided)
     if (candidatePhone && !/^\d{10}$/.test(candidatePhone)) {
-      alert('Candidate phone number must be exactly 10 digits.');
-      return;
+      setPhoneError('Candidate phone number must be exactly 10 digits.');
+      hasError = true;
+    } else {
+      setPhoneError(null);
     }
 
+    // Primary Skill(s)
     if (primarySkills.length === 0) {
-      alert('Please select at least one primary skill.');
-      return;
+      setPrimarySkillsError('At least one primary skill is required.');
+      hasError = true;
+    } else {
+      setPrimarySkillsError(null);
     }
 
+    // Years of Experience
     if (!experienceRange) {
-      alert('Please select years of experience.');
+      setExperienceSelectError('Years of experience is required.');
+      hasError = true;
+    } else {
+      setExperienceSelectError(null);
+    }
+
+    if (hasError) {
       return;
     }
 
@@ -426,25 +465,46 @@ export default function StartInterviewPage() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} noValidate>
                 {/* Candidate Name Input */}
                 <div style={{ marginBottom: '18px' }}>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
                     Candidate Name <span style={{ color: primaryThemeColor }}>*</span>
                   </label>
+                  {nameError && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#b91c1c',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {nameError}
+                    </div>
+                  )}
                   <input
                     type="text"
-                    required
                     placeholder="Full name of the candidate"
                     value={candidateName}
                     onChange={(e) => {
-                      // Only letters and spaces allowed — strips numbers/symbols as they type
-                      const lettersOnly = e.target.value.replace(/[^A-Za-z\s]/g, '');
-                      setCandidateName(lettersOnly);
+                      const value = e.target.value;
+                      setCandidateName(value);
+                      if (!value.trim()) {
+                        setNameError('Candidate name is required.');
+                      } else if (!/^[A-Za-z\s]*$/.test(value)) {
+                        setNameError('Candidate name must contain alphabets only.');
+                      } else {
+                        setNameError(null);
+                      }
                     }}
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: '8px',
-                      border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a',
+                      border: nameError ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '14px', color: '#0f172a',
                       outline: 'none', boxSizing: 'border-box',
                     }}
                   />
@@ -455,15 +515,40 @@ export default function StartInterviewPage() {
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
                     Candidate Email <span style={{ color: primaryThemeColor }}>*</span>
                   </label>
+                  {emailError && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#b91c1c',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {emailError}
+                    </div>
+                  )}
                   <input
                     type="email"
-                    required
                     placeholder="candidate@example.com"
                     value={candidateEmail}
-                    onChange={(e) => setCandidateEmail(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCandidateEmail(value);
+                      if (!value.trim()) {
+                        setEmailError('Candidate email is required.');
+                      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+                        setEmailError('Please enter a valid email address.');
+                      } else {
+                        setEmailError(null);
+                      }
+                    }}
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: '8px',
-                      border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a',
+                      border: emailError ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '14px', color: '#0f172a',
                       outline: 'none', boxSizing: 'border-box',
                     }}
                   />
@@ -474,19 +559,44 @@ export default function StartInterviewPage() {
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
                     Candidate Phone Number <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span>
                   </label>
+                  {phoneError && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#b91c1c',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {phoneError}
+                    </div>
+                  )}
                   <input
                     type="tel"
                     placeholder="10-digit phone number"
                     value={candidatePhone}
                     maxLength={10}
                     onChange={(e) => {
-                      // Digits only, capped at 10 characters as they type
-                      const digitsOnly = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                      setCandidatePhone(digitsOnly);
+                      const value = e.target.value;
+                      setCandidatePhone(value);
+                      if (value && !/^[0-9]*$/.test(value)) {
+                        setPhoneError('Candidate phone number must contain numbers only.');
+                      } else {
+                        setPhoneError(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (candidatePhone && !/^\d{10}$/.test(candidatePhone)) {
+                        setPhoneError('Candidate phone number must be exactly 10 digits.');
+                      }
                     }}
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: '8px',
-                      border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a',
+                      border: phoneError ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '14px', color: '#0f172a',
                       outline: 'none', boxSizing: 'border-box',
                     }}
                   />
@@ -499,6 +609,22 @@ export default function StartInterviewPage() {
                     <span style={{ color: '#94a3b8', fontWeight: 400 }}> — select one or more</span>
                   </label>
 
+                  {primarySkillsError && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#b91c1c',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {primarySkillsError}
+                    </div>
+                  )}
+
                   {/* Trigger box — selected skill chips render INSIDE this box */}
                   <div
                     onClick={() => {
@@ -507,7 +633,8 @@ export default function StartInterviewPage() {
                     }}
                     style={{
                       width: '100%', minHeight: '44px', padding: '8px 14px', borderRadius: '8px',
-                      border: '1px solid #cbd5e1', fontSize: '14px',
+                      border: primarySkillsError ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '14px',
                       backgroundColor: '#ffffff', cursor: 'pointer', display: 'flex',
                       flexWrap: 'wrap', gap: '6px', alignItems: 'center',
                       justifyContent: primarySkills.length ? 'flex-start' : 'space-between',
@@ -749,6 +876,22 @@ export default function StartInterviewPage() {
                     Years of Experience <span style={{ color: primaryThemeColor }}>*</span>
                   </label>
 
+                  {experienceSelectError && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#b91c1c',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {experienceSelectError}
+                    </div>
+                  )}
+
                   {experienceLoading ? (
                     <span style={{ fontSize: '13px', color: '#94a3b8' }}>Loading options...</span>
                   ) : (
@@ -759,7 +902,10 @@ export default function StartInterviewPage() {
                           <button
                             key={range.id}
                             type="button"
-                            onClick={() => setExperienceRange(range.label)}
+                            onClick={() => {
+                              setExperienceRange(range.label);
+                              setExperienceSelectError(null);
+                            }}
                             style={{
                               padding: '8px 16px',
                               borderRadius: '999px',
