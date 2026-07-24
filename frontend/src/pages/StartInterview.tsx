@@ -217,6 +217,15 @@ export default function StartInterviewPage() {
 
   const addCustomPrimarySkill = () => {
     const trimmed = primaryCustomInput.trim();
+    const alreadyInSecondary = secondarySkills.some(
+      (s) => s.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (alreadyInSecondary) {
+      alert(`"${trimmed}" is already selected as a secondary skill. A skill can only be selected once.`);
+      return;
+    }
+
     if (trimmed && !primarySkills.includes(trimmed)) {
       setPrimarySkills((prev) => [...prev, trimmed]);
     }
@@ -225,6 +234,15 @@ export default function StartInterviewPage() {
 
   const addCustomSecondarySkill = () => {
     const trimmed = secondaryCustomInput.trim();
+    const alreadyInPrimary = primarySkills.some(
+      (s) => s.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (alreadyInPrimary) {
+      alert(`"${trimmed}" is already selected as a primary skill. A skill can only be selected once.`);
+      return;
+    }
+
     if (trimmed && !secondarySkills.includes(trimmed)) {
       setSecondarySkills((prev) => [...prev, trimmed]);
     }
@@ -263,12 +281,18 @@ export default function StartInterviewPage() {
     });
   };
 
-  const filteredPrimarySkills = skills.filter((skill) =>
-    skill.name.toLowerCase().includes(primarySearch.toLowerCase())
+  // A skill selected as Primary can't also show up as a Secondary option,
+  // and vice versa — each skill may only be picked once, in one field.
+  const filteredPrimarySkills = skills.filter(
+    (skill) =>
+      skill.name.toLowerCase().includes(primarySearch.toLowerCase()) &&
+      !secondarySkills.includes(skill.name)
   );
 
-  const filteredSecondarySkills = skills.filter((skill) =>
-    skill.name.toLowerCase().includes(secondarySearch.toLowerCase())
+  const filteredSecondarySkills = skills.filter(
+    (skill) =>
+      skill.name.toLowerCase().includes(secondarySearch.toLowerCase()) &&
+      !primarySkills.includes(skill.name)
   );
 
   const chipStyle: React.CSSProperties = {

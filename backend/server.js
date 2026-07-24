@@ -16,7 +16,10 @@ app.use(
 app.use(express.json());
 app.use(
   session({
-    secret: "interview-monitoring-secret",
+    // TODO: move this to an environment variable (e.g. process.env.SESSION_SECRET)
+    // before deploying anywhere outside your own machine. Hardcoded secrets in
+    // source are a problem the moment this repo is shared or pushed to git.
+    secret: process.env.SESSION_SECRET || "interview-monitoring-secret",
     resave: false,
     saveUninitialized: false,
     rolling: true, // resets the maxAge countdown on every authenticated request, instead of a fixed 5-min window from login
@@ -25,18 +28,28 @@ app.use(
     }
   })
 );
+
+// TODO: move these to environment variables (process.env.GMAIL_USER / GMAIL_PASS)
+// before deploying. A real mailbox password sitting in source code is a
+// standing risk the moment this file is committed or shared.
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "prasham1504@gmail.com",
-    pass: "ihmrbflzxsnhemid",
+    user: process.env.GMAIL_USER || "prasham1504@gmail.com",
+    pass: process.env.GMAIL_PASS || "ihmrbflzxsnhemid",
   },
 });
+
 function generateOTP() {
   return Math.floor(
     100000 + Math.random() * 900000
   ).toString();
 }
+
+// Only @einfochips.com addresses are allowed to authenticate or be
+// registered as interviewers. Shared here so /send-otp and the employee
+// directory upsert enforce the exact same rule.
+const COMPANY_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@einfochips\.com$/i;
 
 // ---- Canonical skill list, used to seed the skills table ----
 const SKILL_LIST = [
@@ -145,7 +158,6 @@ db.run(`
   }
 });
 
-
 // ---- Ensure the employees table exists ----
 db.run(`
   CREATE TABLE IF NOT EXISTS employees (
@@ -164,13 +176,31 @@ db.run(`
   }
 });
 
-
 app.get("/", (req, res) => {
   res.send("Backend Running");
 });
+
 app.post("/send-otp", (req, res) => {
 
   const { email } = req.body;
+
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "Email is required."
+    });
+  }
+
+  const trimmedEmail = email.trim();
+
+  // Only @einfochips.com addresses may log in, checked before the DB is
+  // even touched so this can't be bypassed by calling the API directly.
+  if (!COMPANY_EMAIL_REGEX.test(trimmedEmail)) {
+    return res.status(403).json({
+      success: false,
+      message: "Only @einfochips.com email addresses are allowed to log in."
+    });
+  }
 
   db.get(
     `
@@ -178,7 +208,7 @@ app.post("/send-otp", (req, res) => {
     FROM employees
     WHERE email = ?
     `,
-    [email],
+    [trimmedEmail],
 
     async (err, employee) => {
 
@@ -217,12 +247,12 @@ app.post("/send-otp", (req, res) => {
   const otp = "12345"; // TEMP: hardcoded for testing, revert to generateOTP() later
 
  req.session.otp = otp;
- req.session.email = email;
+ req.session.email = trimmedEmail;
  req.session.createdAt = Date.now();
 
   // await transporter.sendMail({
   //   from: "prasham1504@gmail.com",
-  //   to: email,
+  //   to: trimmedEmail,
   //   subject:
   //     "Interview Management OTP",
 
@@ -259,7 +289,8 @@ app.post("/send-otp", (req, res) => {
 
 app.post("/verify-otp", (req, res) => {
 
-  const { email, otp } = req.body;
+  const { otp } = req.body;
+  const email = typeof req.body.email === "string" ? req.body.email.trim() : req.body.email;
 
   if (!req.session.otp) {
     return res.status(400).json({
@@ -499,19 +530,6 @@ app.get("/api/interviews", (req, res) => {
   );
 });
 
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
-});
-
-transporter.verify((error, success) => {
-  if (error) {
-    console.log("Mail Error:", error);
-  } else {
-    console.log("Mail Server Ready");
-  }
-});
-
-
 // ---- Upsert Employees/Interviewers Endpoint ----
 app.post("/api/employees/upsert", (req, res) => {
   const employees = req.body;
@@ -526,7 +544,6 @@ app.post("/api/employees/upsert", (req, res) => {
 
   // 2. Format & Regex Validation
   const isNumericOnly = /^\d+$/;
-  const isDomainValid = /^[a-zA-Z0-9._%+-]+@einfochips\.com$/i;
 
   for (let i = 0; i < employees.length; i++) {
     const emp = employees[i];
@@ -546,7 +563,7 @@ app.post("/api/employees/upsert", (req, res) => {
       });
     }
 
-    if (!emp.email || !isDomainValid.test(emp.email.toString().trim())) {
+    if (!emp.email || !COMPANY_EMAIL_REGEX.test(emp.email.toString().trim())) {
       return res.status(400).json({
         success: false,
         message: `Row ${rowNum}: Email must be a valid '@einfochips.com' address.`,
@@ -600,4 +617,16 @@ app.post("/api/employees/upsert", (req, res) => {
       }
     );
   });
+});
+
+app.listen(5000, () => {
+  console.log("Server running on port 5000");
+});
+
+transporter.verify((error, success) => {
+  if (error) {
+    console.log("Mail Error:", error);
+  } else {
+    console.log("Mail Server Ready");
+  }
 });

@@ -32,11 +32,19 @@ function Login() {
   const sendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
+    const trimmedEmail = email.trim();
+    const isCompanyEmail = /^[a-zA-Z0-9._%+-]+@einfochips\.com$/i.test(trimmedEmail);
+
+    if (!isCompanyEmail) {
+      alert("Please use your @einfochips.com email address to log in.");
+      return;
+    }
+
     try {
       setLoading(true);
 
       const response = await api.post("/send-otp", {
-        email,
+        email: trimmedEmail,
       });
 
       if (response.data.success) {
@@ -132,7 +140,9 @@ function Login() {
                                 type="email"
                                 data-testid="email"
                                 className="MuiInputBase-input MuiOutlinedInput-input css-q9pwqh"
-                                placeholder="name@company.com"
+                                placeholder="name@einfochips.com"
+                                pattern="[a-zA-Z0-9._%+-]+@einfochips\.com"
+                                title="Please use your @einfochips.com email address"
                                 value={email}
                                 onChange={(e) =>
                                   setEmail(e.target.value)
