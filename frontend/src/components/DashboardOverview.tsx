@@ -10,9 +10,10 @@ export interface EmployeeProfile {
 
 interface Props {
   employee: EmployeeProfile;
+  primaryThemeColor?: string;
 }
 
-export default function DashboardOverview({ employee }: Props) {
+export default function DashboardOverview({ employee, primaryThemeColor = '#007fcd' }: Props) {
   const navigate = useNavigate();
 
   return (
@@ -32,7 +33,7 @@ export default function DashboardOverview({ employee }: Props) {
           type="button"
           onClick={() => navigate('/interview/new')}
           style={{
-            backgroundColor: 'var(--blue-2, #007fcd)',
+            backgroundColor: primaryThemeColor,
             color: '#ffffff',
             border: 'none',
             borderRadius: '6px',

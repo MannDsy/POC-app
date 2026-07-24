@@ -19,9 +19,9 @@ app.use(
     secret: "interview-monitoring-secret",
     resave: false,
     saveUninitialized: false,
-    rolling: true, 
+    rolling: true, // resets the maxAge countdown on every authenticated request, instead of a fixed 5-min window from login
     cookie: {
-      maxAge: 60 * 60 * 1000
+      maxAge: 60 * 60 * 1000 // 1 hour (was 5 minutes) - more realistic for actually using the app
     }
   })
 );
@@ -38,15 +38,97 @@ function generateOTP() {
   ).toString();
 }
 
+// ---- Canonical skill list, used to seed the skills table ----
+const SKILL_LIST = [
+  'C', 'C++', 'Embedded C', 'Python', 'Rust', 'Java', 'JavaScript', 'TypeScript', 'Go',
+  'Zephyr RTOS', 'FreeRTOS', 'RTOS', 'Embedded Linux', 'Linux', 'Yocto', 'Buildroot',
+  'Bare Metal Programming', 'Firmware Development', 'Device Drivers', 'Bootloader Development', 'U-Boot',
+  'ARM Cortex-M', 'ARM Cortex-A', 'STM32', 'ESP32', 'AVR', 'PIC', 'MSP430',
+  'Raspberry Pi', 'BeagleBone', 'NXP', 'Nordic nRF', 'TI Microcontrollers',
+  'Embedded Systems', 'Digital Electronics', 'Analog Electronics', 'PCB Design', 'Circuit Design',
+  'Hardware Debugging', 'Oscilloscope', 'Logic Analyzer', 'JTAG', 'UART', 'SPI', 'I2C', 'CAN',
+  'USB', 'Ethernet', 'GPIO', 'PWM', 'ADC/DAC', 'FPGA', 'Verilog', 'VHDL',
+  'Internet of Things (IoT)', 'MQTT', 'CoAP', 'BLE', 'Bluetooth', 'Wi-Fi', 'Zigbee', 'LoRa', 'NB-IoT', 'Matter',
+  'Artificial Intelligence', 'Machine Learning', 'Deep Learning', 'Computer Vision',
+  'Natural Language Processing', 'Generative AI', 'Large Language Models (LLMs)',
+  'Prompt Engineering', 'Retrieval-Augmented Generation (RAG)', 'AI Agents',
+  'Edge AI', 'TinyML', 'TensorFlow Lite', 'TensorFlow Lite Micro', 'ONNX Runtime', 'OpenVINO',
+  'NVIDIA Jetson', 'Google Coral', 'Qualcomm AI', 'Model Optimization',
+  'Data Science', 'Data Analytics', 'Data Engineering', 'Data Visualization', 'Pandas', 'NumPy',
+  'Scikit-learn', 'Matplotlib', 'OpenCV', 'PyTorch', 'TensorFlow', 'Keras',
+  'AWS', 'Azure', 'Google Cloud Platform', 'Docker', 'Kubernetes', 'Git', 'GitHub', 'GitLab',
+  'Jenkins', 'CI/CD', 'Bash', 'Shell Scripting',
+  'React', 'Node.js', 'Express.js', 'Next.js', 'HTML', 'CSS',
+  'SQL', 'MySQL', 'PostgreSQL', 'SQLite', 'MongoDB', 'Redis',
+  'CMake', 'West', 'GDB', 'OpenOCD', 'VS Code', 'Visual Studio', 'Eclipse',
+  'Keil uVision', 'IAR Embedded Workbench', 'PlatformIO',
+  'Unit Testing', 'Integration Testing', 'Hardware-in-the-Loop (HIL)', 'Static Code Analysis',
+];
+
+// ---- Ensure the skills table exists and is seeded ----
+db.run(`
+  CREATE TABLE IF NOT EXISTS skills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+  )
+`, (err) => {
+  if (err) {
+    console.error("Failed to ensure skills table exists:", err.message);
+    return;
+  }
+  const insertStmt = db.prepare(`INSERT OR IGNORE INTO skills (name) VALUES (?)`);
+  SKILL_LIST.forEach((skillName) => {
+    insertStmt.run(skillName);
+  });
+  insertStmt.finalize(() => {
+    console.log("skills table ready and seeded");
+  });
+});
+
+// ---- Ensure the experience_ranges table exists and is seeded ----
+const EXPERIENCE_RANGES = [
+  '0-1',
+  '1-3',
+  '3-6',
+  '6-9',
+  '10-12',
+  '13-15',
+  'More than 15',
+];
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS experience_ranges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    label TEXT NOT NULL UNIQUE,
+    sort_order INTEGER NOT NULL
+  )
+`, (err) => {
+  if (err) {
+    console.error("Failed to ensure experience_ranges table exists:", err.message);
+    return;
+  }
+  const insertStmt = db.prepare(`INSERT OR IGNORE INTO experience_ranges (label, sort_order) VALUES (?, ?)`);
+  EXPERIENCE_RANGES.forEach((label, index) => {
+    insertStmt.run(label, index);
+  });
+  insertStmt.finalize(() => {
+    console.log("experience_ranges table ready and seeded");
+  });
+});
+
 // ---- Ensure the interviews table exists (creates it once, no-op after that) ----
+// primary_skills / secondary_skills store a JSON array of skill names,
+// e.g. '["Python","FreeRTOS"]', so more than one skill can be selected.
+// experience_range stores a single label from experience_ranges, e.g. "3-6".
 db.run(`
   CREATE TABLE IF NOT EXISTS interviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     candidate_name TEXT NOT NULL,
     candidate_email TEXT NOT NULL,
     candidate_phone TEXT,
-    primary_skill TEXT NOT NULL,
-    secondary_skill TEXT,
+    primary_skills TEXT NOT NULL,
+    secondary_skills TEXT,
+    experience_range TEXT NOT NULL,
     interviewer_email TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'scheduled',
     created_at TEXT NOT NULL
@@ -244,21 +326,64 @@ app.get("/api/users/profile", (req, res) => {
   });
 });
 
+// ---- List all experience ranges (for the Years of Experience picker) ----
+app.get("/api/experience-ranges", (req, res) => {
+  db.all(`SELECT id, label FROM experience_ranges ORDER BY sort_order ASC`, [], (err, rows) => {
+    if (err) {
+      console.error("Failed to fetch experience ranges:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch experience ranges.",
+      });
+    }
+    return res.json({ success: true, experienceRanges: rows });
+  });
+});
+
+// ---- List all available skills (for the primary/secondary skill pickers) ----
+app.get("/api/skills", (req, res) => {
+  db.all(`SELECT id, name FROM skills ORDER BY name ASC`, [], (err, rows) => {
+    if (err) {
+      console.error("Failed to fetch skills:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch skills.",
+      });
+    }
+    return res.json({ success: true, skills: rows });
+  });
+});
+
 // ---- Start Interview: create a new interview record ----
 app.post("/api/interviews", (req, res) => {
   const {
     candidateName,
     candidateEmail,
     candidatePhone,
-    primarySkill,
-    secondarySkill,
+    primarySkills,   // string[] - at least 1 required
+    secondarySkills, // string[] - optional
+    experienceRange, // string - required, e.g. "3-6"
   } = req.body;
 
   // Basic required-field validation (mirrors the frontend's `required` fields)
-  if (!candidateName || !candidateEmail || !primarySkill) {
+  if (!candidateName || !candidateEmail) {
     return res.status(400).json({
       success: false,
-      message: "Candidate name, candidate email, and primary skill are required.",
+      message: "Candidate name and candidate email are required.",
+    });
+  }
+
+  if (!Array.isArray(primarySkills) || primarySkills.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "At least one primary skill must be selected.",
+    });
+  }
+
+  if (!experienceRange) {
+    return res.status(400).json({
+      success: false,
+      message: "Years of experience must be selected.",
     });
   }
 
@@ -273,8 +398,8 @@ app.post("/api/interviews", (req, res) => {
 
   const insertQuery = `
     INSERT INTO interviews
-      (candidate_name, candidate_email, candidate_phone, primary_skill, secondary_skill, interviewer_email, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+      (candidate_name, candidate_email, candidate_phone, primary_skills, secondary_skills, experience_range, interviewer_email, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.run(
@@ -283,8 +408,11 @@ app.post("/api/interviews", (req, res) => {
       candidateName,
       candidateEmail,
       candidatePhone || null,
-      primarySkill,
-      secondarySkill || null,
+      JSON.stringify(primarySkills),
+      Array.isArray(secondarySkills) && secondarySkills.length > 0
+        ? JSON.stringify(secondarySkills)
+        : null,
+      experienceRange,
       interviewerEmail,
       new Date().toISOString(),
     ],
@@ -327,7 +455,13 @@ app.get("/api/interviews", (req, res) => {
           message: "Failed to fetch interviews.",
         });
       }
-      return res.json({ success: true, interviews: rows });
+      const interviews = rows.map((row) => ({
+        ...row,
+        primary_skills: row.primary_skills ? JSON.parse(row.primary_skills) : [],
+        secondary_skills: row.secondary_skills ? JSON.parse(row.secondary_skills) : [],
+      }));
+
+      return res.json({ success: true, interviews });
     }
   );
 });

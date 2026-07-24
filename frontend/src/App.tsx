@@ -19,7 +19,7 @@ function App() {
       <Route path="/home" element={<HomePage />} />
       <Route
         path="/interview/new"
-        element={<StartInterviewPage primaryThemeColor="#0069aa" />}
+        element={<StartInterviewPage />}
       />
       <Route
         path="*"

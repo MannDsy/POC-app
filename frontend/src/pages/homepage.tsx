@@ -54,6 +54,9 @@ export default function HomePage() {
 
   const themeClass = theme === "blue" ? "custom-theme-blue" : "custom-theme-black";
 
+  // Dynamic primary theme color for buttons & highlights, e.g. Add Interview
+  const primaryThemeColor = theme === "blue" ? "#0069aa" : "#121212";
+
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [showThemeOptions, setShowThemeOptions] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -186,7 +189,7 @@ export default function HomePage() {
 
         {/* MAIN WORKSPACE VIEW */}
         <main className="homepage-content" style={{ marginLeft: '20px', flex: 1, position: 'relative' }}>
-          {activeTab === 'home' && <DashboardOverview employee={employee} />}
+          {activeTab === 'home' && <DashboardOverview employee={employee} primaryThemeColor={primaryThemeColor} />}
           {activeTab === 'tasks' && <AssignedTasks />}
           {activeTab === 'timesheet' && <TimesheetTracker />}
           {activeTab === 'directory' && employee.role === 'admin' && <EmployeeDirectory />}
