@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../index.css';
 
 // Import Modular View Components
@@ -33,6 +33,7 @@ const getInitialsFromEmail = (email?: string | null): string => {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   useEffect(() => {
     const user = sessionStorage.getItem("loggedInUserEmail");
     if (!user) {
@@ -43,7 +44,11 @@ export default function HomePage() {
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('home');
+
+  // Pages like StartInterview navigate('/home', { state: { tab } }) so the
+  // sidebar/header tabs still work when clicked from outside the dashboard.
+  const requestedTab = (location.state as { tab?: TabType } | null)?.tab;
+  const [activeTab, setActiveTab] = useState<TabType>(requestedTab ?? 'home');
   const loggedInEmail = sessionStorage.getItem("loggedInUserEmail");
   
   const [theme, setTheme] = useState<ThemeType>(() => {
