@@ -131,6 +131,7 @@ db.run(`
     experience_range TEXT NOT NULL,
     interviewer_email TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'scheduled',
+    question_type TEXT NOT NULL DEFAULT 'default',
     created_at TEXT NOT NULL
   )
 `, (err) => {
@@ -138,6 +139,9 @@ db.run(`
     console.error("Failed to ensure interviews table exists:", err.message);
   } else {
     console.log("interviews table ready");
+    // Migration for pre-existing DBs created before question_type existed.
+    // SQLite errors if the column is already there — that's fine, ignore it.
+    db.run(`ALTER TABLE interviews ADD COLUMN question_type TEXT NOT NULL DEFAULT 'default'`, () => {});
   }
 });
 
@@ -383,6 +387,7 @@ app.post("/api/interviews", (req, res) => {
     primarySkills,   // string[] - at least 1 required
     secondarySkills, // string[] - optional
     experienceRange, // string - required, e.g. "3-6"
+    questionType,    // 'default' | 'custom' - required, chosen on the question-type step
   } = req.body;
 
   // Basic required-field validation (mirrors the frontend's `required` fields)
@@ -407,6 +412,13 @@ app.post("/api/interviews", (req, res) => {
     });
   }
 
+  if (questionType !== 'default' && questionType !== 'custom') {
+    return res.status(400).json({
+      success: false,
+      message: "Question type must be either 'default' or 'custom'.",
+    });
+  }
+
   // Only a logged-in employee (interviewer) can start an interview
   const interviewerEmail = req.session.user;
   if (!interviewerEmail) {
@@ -418,8 +430,8 @@ app.post("/api/interviews", (req, res) => {
 
   const insertQuery = `
     INSERT INTO interviews
-      (candidate_name, candidate_email, candidate_phone, primary_skills, secondary_skills, experience_range, interviewer_email, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (candidate_name, candidate_email, candidate_phone, primary_skills, secondary_skills, experience_range, interviewer_email, question_type, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.run(
@@ -434,6 +446,7 @@ app.post("/api/interviews", (req, res) => {
         : null,
       experienceRange,
       interviewerEmail,
+      questionType,
       new Date().toISOString(),
     ],
     function (err) {
