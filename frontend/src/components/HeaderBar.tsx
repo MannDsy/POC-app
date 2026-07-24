@@ -92,9 +92,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>(theme);
 
-  // Keep internal modal state aligned with prop changes
+  // Keep internal modal state aligned with prop changes & reflect data attribute on mount
   useEffect(() => {
     setSelectedTheme(theme);
+    document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   // Search Bar States
@@ -137,6 +138,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     if (onThemeChange) {
       onThemeChange(selectedTheme);
     }
+    // Update global data-theme attribute on <html> element for CSS variable updates
+    document.documentElement.setAttribute('data-theme', selectedTheme);
     setIsThemeModalOpen(false);
   };
 
@@ -291,7 +294,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                       height="1em"
                       width="1em"
                       xmlns="http://www.w3.org/2000/svg"
-                      style={{ color: 'var(--icon-header-icons)' }}
+                      style={{ color: 'var(--icon-header-icons, #ffffff)' }}
                     >
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="16" x2="12" y2="12" />
@@ -379,143 +382,141 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </div>
         </div>
       </header>
+
       {/* Theme Picker Modal Dialog */}
-{isThemeModalOpen && (
-  <div
-    style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.4)',
-      backdropFilter: 'blur(4px)',          // Blurs the main page background
-      WebkitBackdropFilter: 'blur(4px)',    // Safari support
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-    }}
-    onClick={() => setIsThemeModalOpen(false)}
-  >
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: '8px',
-        width: '460px',
-        maxWidth: '90%',
-        padding: '24px',
-        position: 'relative',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Modal Header */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px', position: 'relative' }}>
-        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 500, color: '#0069aa' }}>Choose Theme</h3>
-        <button
-          onClick={() => setIsThemeModalOpen(false)}
+      {isThemeModalOpen && (
+        <div
           style={{
-            position: 'absolute',
-            right: 0,
+            position: 'fixed',
             top: 0,
-            background: 'none',
-            border: '1px solid #0069aa',
-            borderRadius: '50%',
-            width: '24px',
-            height: '24px',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#0069aa',
-            cursor: 'pointer',
-            fontSize: '14px',
-            lineHeight: 1,
+            zIndex: 1000,
           }}
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Theme Options Cards */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '28px' }}>
-        {THEME_OPTIONS.map((option) => {
-          const isSelected = selectedTheme === option.key;
-          return (
-            <div
-              key={option.key}
-              onClick={() => setSelectedTheme(option.key)}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                border: isSelected ? '2px solid #0069aa' : '1px solid #e0e0e0',
-                background: isSelected ? '#f0f7fc' : '#ffffff',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    backgroundColor: option.color,
-                    display: 'inline-block',
-                  }}
-                />
-                <span style={{ fontSize: '14px', color: '#333333', fontWeight: isSelected ? 500 : 400 }}>
-                  {option.label}
-                </span>
-              </div>
-              {isSelected && <span style={{ color: '#0069aa', fontWeight: 'bold', fontSize: '16px' }}>✓</span>}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Footer Action Buttons */}
-      <div style={{ display: 'flex', gap: '16px' }}>
-        <button
           onClick={() => setIsThemeModalOpen(false)}
-          style={{
-            flex: 1,
-            padding: '10px 0',
-            borderRadius: '4px',
-            border: '1px solid #0069aa',
-            background: '#ffffff',
-            color: '#0069aa',
-            fontSize: '14px',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
         >
-          Cancel
-        </button>
-        <button
-          onClick={handleApplyTheme}
-          style={{
-            flex: 1,
-            padding: '10px 0',
-            borderRadius: '4px',
-            border: 'none',
-            background: '#0069aa',
-            color: '#ffffff',
-            fontSize: '14px',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
-          Apply
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '8px',
+              width: '460px',
+              maxWidth: '90%',
+              padding: '24px',
+              position: 'relative',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px', position: 'relative' }}>
+              <h3 className="theme-text-primary" style={{ margin: 0, fontSize: '18px', fontWeight: 500 }}>
+                Choose Theme
+              </h3>
+              <button
+                onClick={() => setIsThemeModalOpen(false)}
+                className="theme-button-outline"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 0,
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Theme Options Cards */}
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '28px' }}>
+              {THEME_OPTIONS.map((option) => {
+                const isSelected = selectedTheme === option.key;
+                return (
+                  <div
+                    key={option.key}
+                    onClick={() => setSelectedTheme(option.key)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: isSelected ? '2px solid var(--primary-color)' : '1px solid #e0e0e0',
+                      background: isSelected ? 'var(--primary-light-bg)' : '#ffffff',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          backgroundColor: option.color,
+                          display: 'inline-block',
+                        }}
+                      />
+                      <span style={{ fontSize: '14px', color: '#333333', fontWeight: isSelected ? 500 : 400 }}>
+                        {option.label}
+                      </span>
+                    </div>
+                    {isSelected && <span className="theme-text-primary" style={{ fontWeight: 'bold', fontSize: '16px' }}>✓</span>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Action Buttons */}
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button
+                onClick={() => setIsThemeModalOpen(false)}
+                className="theme-button-outline"
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyTheme}
+                className="theme-button-primary"
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

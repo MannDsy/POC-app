@@ -7,7 +7,7 @@ import '../index.css';
 import DashboardOverview, { type EmployeeProfile } from '../components/DashboardOverview';
 import AssignedTasks from '../components/AssignedTasks';
 import TimesheetTracker from '../components/TimesheetTracker';
-import EmployeeDirectory from '../components/EmployeeDirectory';
+import EmployeeDirectory from '../components/InterviewerDirectory';
 import SystemAccessLogs from '../components/SystemAccessLogs';
 import HeaderBar from '../components/HeaderBar';
 import Navbar, { type TabType } from '../components/NavBar';

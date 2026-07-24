@@ -58,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'Overview', icon: ICONS.overview },
   { key: 'tasks', label: 'Tickets', icon: ICONS.tickets },
   { key: 'timesheet', label: 'Spent Time', icon: ICONS.clock },
-  { key: 'directory', label: 'Employee Directory', icon: ICONS.directory, adminOnly: true },
+  { key: 'directory', label: 'Interviewer Directory', icon: ICONS.directory, adminOnly: true },
   { key: 'logs', label: 'System Access Logs', icon: ICONS.logs, adminOnly: true },
 ];
 
