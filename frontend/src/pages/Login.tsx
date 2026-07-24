@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import "../index.css";
-import logo from "../assets/eInfochips_logo_black.svg";
+import logo from "../assets/eInfochips_logo_black.png";
 
 function Login() {
   const navigate = useNavigate();
